@@ -6,9 +6,9 @@ import java.sql.SQLException;
 
 public class ConnectionFactory {
     // Configure com suas credenciais do MySQL
-    private static final String URL = "jdbc:mysql://localhost:3306/gamified_habit_tracker_db"; // Altere nome do banco se necessário
-    private static final String USER = "seu_usuario_mysql"; // Ex: root
-    private static final String PASSWORD = "sua_senha_mysql";
+    private static final String URL = "jdbc:mysql://localhost:3307/habitracker_db"; // Altere nome do banco se necessário
+    private static final String USER = "root"; // Ex: root
+    private static final String PASSWORD = "DeepVision";
 
     public static Connection getConnection() {
         try {
