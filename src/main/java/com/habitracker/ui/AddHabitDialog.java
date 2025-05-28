@@ -38,7 +38,9 @@ public class AddHabitDialog extends JDialog {
 
         if (habitToEdit != null) {
             habitNameField.setText(habitToEdit.getName());
-            habitDescriptionField.setText(habitToEdit.getDescription());
+            if (habitToEdit.getDescription() != null) {
+                habitDescriptionField.setText(habitToEdit.getDescription());
+            }
         }
     }
 

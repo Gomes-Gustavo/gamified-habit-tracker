@@ -55,11 +55,11 @@ public class Habit {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Habit habit = (Habit) o;
-        return id == habit.id; 
+        return id == habit.id;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id); 
+        return Objects.hash(id);
     }
 }

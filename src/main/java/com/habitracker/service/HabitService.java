@@ -7,10 +7,9 @@ public interface HabitService {
 
     List<Habit> getAllHabits();
 
-    Habit addHabit(Habit habit); 
+    Habit addHabit(Habit habit);
 
     Habit updateHabit(Habit habitToUpdate);
 
     boolean deleteHabit(long habitId);
-
 }

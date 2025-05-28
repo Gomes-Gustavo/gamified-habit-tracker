@@ -3,7 +3,6 @@ package com.habitracker.service;
 import com.habitracker.model.Habit;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class MockHabitService implements HabitService {
@@ -39,7 +38,6 @@ public class MockHabitService implements HabitService {
             return null;
         }
         if (habit.getName() == null || habit.getName().trim().isEmpty()) {
-            // Ou lançar uma IllegalArgumentException
             return null;
         }
         return addHabitInternal(new Habit(habit.getName(), habit.getDescription()));
@@ -50,16 +48,12 @@ public class MockHabitService implements HabitService {
         if (habitToUpdate == null || habitToUpdate.getId() == 0) {
             return null;
         }
-
-        Optional<Habit> existingHabitOpt = this.habits.stream()
-                .filter(h -> h.getId() == habitToUpdate.getId())
-                .findFirst();
-
-        if (existingHabitOpt.isPresent()) {
-            Habit existingHabit = existingHabitOpt.get();
-            existingHabit.setName(habitToUpdate.getName());
-            existingHabit.setDescription(habitToUpdate.getDescription());
-            return existingHabit;
+        for (Habit existingHabit : this.habits) {
+            if (existingHabit.getId() == habitToUpdate.getId()) {
+                existingHabit.setName(habitToUpdate.getName());
+                existingHabit.setDescription(habitToUpdate.getDescription());
+                return existingHabit;
+            }
         }
         return null;
     }

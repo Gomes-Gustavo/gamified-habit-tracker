@@ -104,7 +104,7 @@ public class HabitPanel extends JPanel {
             String newHabitName = addDialog.getHabitName();
             String newHabitDescription = addDialog.getHabitDescription();
             Habit habitToAdd = new Habit(newHabitName, newHabitDescription);
-            
+
             Habit addedHabit = habitService.addHabit(habitToAdd);
             if (addedHabit != null) {
                 habitListModel.addElement(addedHabit);
@@ -127,7 +127,7 @@ public class HabitPanel extends JPanel {
                 String updatedDescription = editDialog.getHabitDescription();
 
                 Habit habitWithUpdates = new Habit(habitToEdit.getId(), updatedName, updatedDescription);
-                
+
                 Habit updatedHabit = habitService.updateHabit(habitWithUpdates);
                 if (updatedHabit != null) {
                     habitListModel.setElementAt(updatedHabit, selectedIndex);

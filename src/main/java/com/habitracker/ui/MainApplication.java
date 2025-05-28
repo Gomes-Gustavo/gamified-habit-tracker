@@ -1,4 +1,4 @@
-package com.habitracker.ui; 
+package com.habitracker.ui;
 
 import javax.swing.SwingUtilities;
 
