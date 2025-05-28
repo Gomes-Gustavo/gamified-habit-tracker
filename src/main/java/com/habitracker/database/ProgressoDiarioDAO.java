@@ -1,82 +1,72 @@
 package com.habitracker.database;
 
-import com.habitracker.model.ProgressoDiario;
-import com.habitracker.model.Usuario; // Para o main de teste
-import com.habitracker.model.Habit;   // Para o main de teste
 import java.sql.Connection;
-import java.sql.PreparedStatement;
+import java.sql.Date; // Para o main de teste
+import java.sql.PreparedStatement;   // Para o main de teste
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Date;
 import java.sql.Statement;
 import java.time.LocalDate;
-import java.util.List;       // Para um futuro método getHistorico
-import java.util.ArrayList;  // Para um futuro método getHistorico
+
+import com.habitracker.model.Habit;
+import com.habitracker.model.ProgressoDiario;
+import com.habitracker.model.Usuario;
 
 public class ProgressoDiarioDAO {
 
     public ProgressoDiario addProgresso(ProgressoDiario progresso) {
-        // A tabela tem uma UNIQUE KEY em (usuario_id, habito_id, data_registro)
-        // Então, uma tentativa de inserir um duplicado vai falhar, o que é bom.
-        // Poderíamos verificar antes com getProgresso se quisermos um comportamento diferente.
         String sql = "INSERT INTO registros_progresso (usuario_id, habito_id, data_registro, status_cumprido) VALUES (?, ?, ?, ?)";
-        
         try (Connection conn = ConnectionFactory.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            
             pstmt.setInt(1, progresso.getUsuarioId());
             pstmt.setInt(2, progresso.getHabitoId());
             pstmt.setDate(3, Date.valueOf(progresso.getDataRegistro()));
             pstmt.setBoolean(4, progresso.isStatusCumprido());
-            
             int affectedRows = pstmt.executeUpdate();
-            
             if (affectedRows > 0) {
                 try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
                     if (generatedKeys.next()) {
                         progresso.setId(generatedKeys.getInt(1));
-                        return progresso; // Retorna o progresso com o ID preenchido
+                        return progresso;
                     }
                 }
             }
         } catch (SQLException e) {
             System.err.println("Erro ao adicionar progresso diário: " + e.getMessage());
             if (e.getMessage().contains("Duplicate entry")) {
-                 System.err.println("Progresso para este usuário, hábito e data já existe.");
+                System.err.println("Progresso para este usuário, hábito e data já existe.");
             }
             e.printStackTrace();
         }
         return null;
     }
+
     public int getCountProgressoCumprido(int usuarioId) {
-    String sql = "SELECT COUNT(*) FROM registros_progresso WHERE usuario_id = ? AND status_cumprido = TRUE";
-    try (Connection conn = ConnectionFactory.getConnection();
-         PreparedStatement pstmt = conn.prepareStatement(sql)) {
-        pstmt.setInt(1, usuarioId);
-        try (ResultSet rs = pstmt.executeQuery()) {
-            if (rs.next()) {
-                return rs.getInt(1);
+        String sql = "SELECT COUNT(*) FROM registros_progresso WHERE usuario_id = ? AND status_cumprido = TRUE";
+        try (Connection conn = ConnectionFactory.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, usuarioId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
             }
+        } catch (SQLException e) {
+            System.err.println("Erro ao contar progresso cumprido para usuário ID " + usuarioId + ": " + e.getMessage());
+            e.printStackTrace();
         }
-    } catch (SQLException e) {
-        System.err.println("Erro ao contar progresso cumprido para usuário ID " + usuarioId + ": " + e.getMessage());
-        e.printStackTrace();
+        return 0;
     }
-    return 0; // Retorna 0 se houver erro ou nenhum registro
-}
 
     public ProgressoDiario getProgresso(int usuarioId, int habitoId, LocalDate data) {
         String sql = "SELECT id, usuario_id, habito_id, data_registro, status_cumprido FROM registros_progresso " +
                      "WHERE usuario_id = ? AND habito_id = ? AND data_registro = ?";
         ProgressoDiario progresso = null;
-        
         try (Connection conn = ConnectionFactory.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            
             pstmt.setInt(1, usuarioId);
             pstmt.setInt(2, habitoId);
             pstmt.setDate(3, Date.valueOf(data));
-            
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
                     progresso = new ProgressoDiario(
@@ -104,37 +94,38 @@ public class ProgressoDiarioDAO {
 
     public static void main(String[] args) {
         ProgressoDiarioDAO progressoDAO = new ProgressoDiarioDAO();
-        UsuarioDAO usuarioDAO = new UsuarioDAO(); // Para pegar/criar IDs de usuário para teste
-        HabitDAO habitDAO = new HabitDAO();       // Para pegar/criar IDs de hábito para teste
+        UsuarioDAO usuarioDAO = new UsuarioDAO(); 
+        HabitDAO habitDAO = new HabitDAO();     // Instância do HabitDAO para o teste
 
         System.out.println("--- Testando ProgressoDiarioDAO ---");
 
-        // Etapa 1: Garantir que temos um usuário e um hábito para testar
-        // Você pode criar novos ou buscar existentes. Para este teste, vamos criar.
         Usuario uTeste = usuarioDAO.addUsuario(new Usuario("UsuarioProgresso_" + System.currentTimeMillis()));
         Habit hTeste = null; 
-        // Adicionar um hábito através do DAO (addHabit no HabitDAO retorna boolean, não o hábito com ID)
-        // Então, vamos criar e depois buscar pelo nome se necessário, ou assumir IDs.
-        // Para simplificar, vamos assumir que existem hábitos ou adicionar um e tentar pegar o ID.
         
         String nomeHabitoTesteProg = "HabitoParaProgresso_" + System.currentTimeMillis();
-        boolean habitoAdicionado = habitDAO.addHabit(new Habit(nomeHabitoTesteProg, "Teste de progresso", LocalDate.now()));
-        if(habitoAdicionado){
-            List<Habit> habitos = habitDAO.getAllHabits(); // Pega todos para achar o ID
-            for(Habit h : habitos){
-                if(h.getName().equals(nomeHabitoTesteProg)){
-                    hTeste = h;
-                    break;
-                }
-            }
+        
+        // --- PONTO DA CORREÇÃO ---
+        // Antes, você poderia ter algo que esperava um boolean.
+        // Agora, habitDAO.addHabit retorna um objeto Habit (ou null se falhar)
+        Habit novoHabitoObj = new Habit(nomeHabitoTesteProg, "Teste de progresso no main do ProgressoDiarioDAO", LocalDate.now());
+        Habit habitoAdicionadoNoTeste = habitDAO.addHabit(novoHabitoObj); // Chama o addHabit que retorna Habit
+
+        // A verificação de sucesso agora é se o objeto não é nulo E se tem um ID válido
+        if (habitoAdicionadoNoTeste != null && habitoAdicionadoNoTeste.getId() > 0) {
+            System.out.println("Hábito de teste '" + nomeHabitoTesteProg + "' adicionado com sucesso com ID: " + habitoAdicionadoNoTeste.getId());
+            // Se você precisa do objeto hTeste para os testes de progresso, atribua o objeto retornado:
+            hTeste = habitoAdicionadoNoTeste;
+        } else {
+            System.out.println("ERRO: Falha ao adicionar o hábito de teste '" + nomeHabitoTesteProg + "' no main do ProgressoDiarioDAO.");
+            // Se o hábito não pôde ser criado, talvez você não queira continuar com os testes que dependem dele.
         }
+        // --- FIM DO PONTO DA CORREÇÃO ---
 
         if (uTeste == null || uTeste.getId() <= 0 || hTeste == null || hTeste.getId() <= 0) {
             System.out.println("ERRO: Não foi possível criar/obter usuário ou hábito de teste. Abortando testes do ProgressoDiarioDAO.");
             return;
         }
         System.out.println("Usando Usuario ID: " + uTeste.getId() + " e Habito ID: " + hTeste.getId() + " para os testes.");
-
 
         // Teste 1: Adicionar um novo progresso
         System.out.println("\n--- Testando addProgresso (novo) ---");
@@ -147,9 +138,9 @@ public class ProgressoDiarioDAO {
             System.out.println("FALHA (addProgresso novo).");
         }
 
-        // Teste 2: Tentar adicionar o mesmo progresso novamente (deve falhar devido à UNIQUE KEY)
+        // Teste 2: Tentar adicionar o mesmo progresso novamente
         System.out.println("\n--- Testando addProgresso (duplicado) ---");
-        ProgressoDiario progressoDuplicado = new ProgressoDiario(uTeste.getId(), hTeste.getId(), LocalDate.now(), false); // status diferente, mas chave é a mesma
+        ProgressoDiario progressoDuplicado = new ProgressoDiario(uTeste.getId(), hTeste.getId(), LocalDate.now(), false);
         ProgressoDiario resultadoDuplicado = progressoDAO.addProgresso(progressoDuplicado);
         if (resultadoDuplicado == null) {
             System.out.println("SUCESSO (addProgresso duplicado): Falhou como esperado.");
@@ -159,12 +150,18 @@ public class ProgressoDiarioDAO {
 
         // Teste 3: Buscar o progresso que foi adicionado
         System.out.println("\n--- Testando getProgresso (existente) ---");
-        ProgressoDiario progressoBuscado = progressoDAO.getProgresso(uTeste.getId(), hTeste.getId(), LocalDate.now());
-        if (progressoBuscado != null && progressoBuscado.getId() == progressoAdicionado.getId()) {
-            System.out.println("SUCESSO (getProgresso existente): " + progressoBuscado);
+        // Verifica se progressoAdicionado não é nulo antes de tentar usar seu ID
+        if (progressoAdicionado != null) {
+            ProgressoDiario progressoBuscado = progressoDAO.getProgresso(uTeste.getId(), hTeste.getId(), LocalDate.now());
+            if (progressoBuscado != null && progressoBuscado.getId() == progressoAdicionado.getId()) {
+                System.out.println("SUCESSO (getProgresso existente): " + progressoBuscado);
+            } else {
+                System.out.println("FALHA (getProgresso existente). Buscado: " + progressoBuscado);
+            }
         } else {
-            System.out.println("FALHA (getProgresso existente). Buscado: " + progressoBuscado);
+            System.out.println("SKIP (getProgresso existente): Não foi possível adicionar o progresso inicial.");
         }
+        
 
         // Teste 4: Buscar um progresso que não existe (data diferente)
         System.out.println("\n--- Testando getProgresso (data não existente) ---");
