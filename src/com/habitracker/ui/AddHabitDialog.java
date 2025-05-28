@@ -1,5 +1,7 @@
 package com.habitracker.ui;
 
+import com.habitracker.model.Habit;
+
 import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
@@ -21,12 +23,23 @@ public class AddHabitDialog extends JDialog {
     private JButton cancelButton;
     private String habitName;
     private String habitDescription;
+    private boolean isSaved;
 
     public AddHabitDialog(JFrame owner) {
-        super(owner, "Add New Habit", true);
+        this(owner, null);
+    }
+
+    public AddHabitDialog(JFrame owner, Habit habitToEdit) {
+        super(owner, (habitToEdit == null ? "Add New Habit" : "Edit Habit"), true);
         this.habitName = null;
         this.habitDescription = null;
+        this.isSaved = false;
         initializeUI();
+
+        if (habitToEdit != null) {
+            habitNameField.setText(habitToEdit.getName());
+            habitDescriptionField.setText(habitToEdit.getDescription());
+        }
     }
 
     private void initializeUI() {
@@ -65,6 +78,7 @@ public class AddHabitDialog extends JDialog {
                 if (!currentHabitName.isEmpty()) {
                     AddHabitDialog.this.habitName = currentHabitName;
                     AddHabitDialog.this.habitDescription = currentHabitDescription;
+                    AddHabitDialog.this.isSaved = true;
                     dispose();
                 } else {
                     System.out.println("Habit name cannot be empty.");
@@ -75,8 +89,7 @@ public class AddHabitDialog extends JDialog {
         cancelButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                AddHabitDialog.this.habitName = null;
-                AddHabitDialog.this.habitDescription = null;
+                AddHabitDialog.this.isSaved = false;
                 dispose();
             }
         });
@@ -88,5 +101,9 @@ public class AddHabitDialog extends JDialog {
 
     public String getHabitDescription() {
         return this.habitDescription;
+    }
+
+    public boolean isSaved() {
+        return this.isSaved;
     }
 }
