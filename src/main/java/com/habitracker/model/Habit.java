@@ -7,22 +7,31 @@ public class Habit {
     private String name;
     private String description;
     private LocalDate creationDate;
-    // Adicione outros atributos se necessário (ex: frequência, tipo, etc.)
+    private int usuarioId; // NOVO CAMPO para associar ao usuário
 
     // Construtor para criar um novo hábito (o ID pode ser gerado pelo banco)
-    public Habit(String name, String description, LocalDate creationDate) {
+    // Antigo: public Habit(String name, String description, LocalDate creationDate)
+    public Habit(String name, String description, LocalDate creationDate, int usuarioId) {
         this.name = name;
         this.description = description;
         this.creationDate = creationDate;
+        this.usuarioId = usuarioId; // ATRIBUIR usuarioId
     }
 
     // Construtor para quando você lê do banco (incluindo o ID)
-    public Habit(int id, String name, String description, LocalDate creationDate) {
+    // Antigo: public Habit(int id, String name, String description, LocalDate creationDate)
+    public Habit(int id, String name, String description, LocalDate creationDate, int usuarioId) {
         this.id = id;
         this.name = name;
         this.description = description;
         this.creationDate = creationDate;
+        this.usuarioId = usuarioId; // ATRIBUIR usuarioId
     }
+    
+    // Construtor padrão pode ser útil para alguns frameworks ou lógicas, opcional
+    public Habit() {
+    }
+
 
     // Getters
     public int getId() {
@@ -41,7 +50,11 @@ public class Habit {
         return creationDate;
     }
 
-    // Setters (o setId pode não ser necessário se o banco gerar o ID)
+    public int getUsuarioId() { // NOVO GETTER
+        return usuarioId;
+    }
+
+    // Setters
     public void setId(int id) {
         this.id = id;
     }
@@ -58,6 +71,10 @@ public class Habit {
         this.creationDate = creationDate;
     }
 
+    public void setUsuarioId(int usuarioId) { // NOVO SETTER
+        this.usuarioId = usuarioId;
+    }
+
     @Override
     public String toString() { // Útil para debugging
         return "Habit{" +
@@ -65,6 +82,7 @@ public class Habit {
                ", name='" + name + '\'' +
                ", description='" + description + '\'' +
                ", creationDate=" + creationDate +
+               ", usuarioId=" + usuarioId + // INCLUÍDO NO toString
                '}';
     }
 }

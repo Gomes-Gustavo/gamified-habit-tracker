@@ -1,6 +1,5 @@
 package com.habitracker.backend;
 
-// Imports dos seus pacotes de model, database
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -12,23 +11,23 @@ import com.habitracker.database.UsuarioDAO;
 import com.habitracker.model.Conquista;
 import com.habitracker.model.Habit;
 import com.habitracker.model.ProgressoDiario;
-import com.habitracker.model.Usuario;
+import com.habitracker.model.Usuario; // Certifique-se que esta classe tem um construtor public Usuario() {}
 import com.habitracker.serviceapi.HabitTrackerServiceAPI;
 import com.habitracker.serviceapi.dto.FeedbackMarcacaoDTO;
 import com.habitracker.serviceapi.exceptions.HabitNotFoundException;
 import com.habitracker.serviceapi.exceptions.PersistenceException;
-import com.habitracker.serviceapi.exceptions.UserNotFoundException; // Para listas vazias no DTO
+import com.habitracker.serviceapi.exceptions.UserNotFoundException;
 import com.habitracker.serviceapi.exceptions.ValidationException;
 
-public class HabitService implements HabitTrackerServiceAPI { // Implementa a nova interface
+public class HabitService implements HabitTrackerServiceAPI {
 
-    private final HabitDAO habitDAO; // Boa prática torná-las 'final' se injetadas pelo construtor
+    private final HabitDAO habitDAO;
     private final UsuarioDAO usuarioDAO;
     private final ProgressoDiarioDAO progressoDiarioDAO;
     private final ConquistaService conquistaService;
 
-    public HabitService(HabitDAO habitDAO, UsuarioDAO usuarioDAO, 
-                        ProgressoDiarioDAO progressoDiarioDAO, 
+    public HabitService(HabitDAO habitDAO, UsuarioDAO usuarioDAO,
+                        ProgressoDiarioDAO progressoDiarioDAO,
                         ConquistaService conquistaService) {
         this.habitDAO = habitDAO;
         this.usuarioDAO = usuarioDAO;
@@ -37,38 +36,75 @@ public class HabitService implements HabitTrackerServiceAPI { // Implementa a no
     }
 
     @Override
-    public List<Habit> getAllHabits() {
-        List<Habit> habits = habitDAO.getAllHabits();
-        // É uma boa prática garantir que nunca se retorne null para uma coleção
-        return habits != null ? habits : new ArrayList<>();
+    public List<Habit> getAllHabits() throws PersistenceException {
+        try {
+            List<Habit> habits = habitDAO.getAllHabits();
+            return habits != null ? habits : new ArrayList<>();
+        } catch (Exception e) {
+            // Logue o erro e/ou relance como PersistenceException
+            // System.err.println("Erro de persistência em getAllHabits: " + e.getMessage());
+            throw new PersistenceException("Erro ao buscar todos os hábitos.", e);
+        }
     }
 
+    @Override
+    public List<Habit> getHabitsByUserId(int userId) throws PersistenceException, UserNotFoundException {
+        // Validação opcional: verificar se o usuário existe antes de buscar os hábitos
+        // Se getUsuarioById já lança UserNotFoundException, isso já cobre.
+        // usuarioDAO.getUsuarioById(userId); // Se este método não existir ou não lançar, adicione a lógica.
+        // Por enquanto, vamos confiar que o MainFrame passa um userId válido.
+
+        try {
+            // Primeiro, podemos verificar se o usuário existe para lançar uma UserNotFoundException clara se necessário.
+            // (getUsuarioById já faz isso e lança a exceção se não encontrar)
+            getUsuarioById(userId); // Isso garante que o usuário existe ou lança UserNotFoundException
+
+            List<Habit> userHabits = habitDAO.getHabitsByUserId(userId);
+            return userHabits != null ? userHabits : new ArrayList<>();
+        } catch (UserNotFoundException e) {
+            throw e; // Relança a exceção vinda do getUsuarioById
+        } catch (Exception e) {
+            // Log o erro e encapsula como PersistenceException
+            // logger.error("Erro de persistência ao buscar hábitos para o usuário ID: " + userId, e);
+            throw new PersistenceException("Erro ao buscar hábitos para o usuário ID: " + userId, e);
+        }
+    }
+    
     @Override
     public Habit addHabit(Habit habit) throws PersistenceException, ValidationException {
         if (habit == null || habit.getName() == null || habit.getName().trim().isEmpty()) {
             throw new ValidationException("Dados do hábito inválidos: nome não pode ser vazio.");
         }
-        // ASSUMINDO que habitDAO.addHabit foi modificado para retornar Habit com ID
-        Habit habitAdicionado = habitDAO.addHabit(habit);
-        if (habitAdicionado == null) {
-            // Isso aconteceria se o DAO falhasse em inserir ou em obter o ID gerado
-            throw new PersistenceException("Falha ao salvar o hábito no banco de dados.");
+        try {
+            Habit habitAdicionado = habitDAO.addHabit(habit);
+            if (habitAdicionado == null || habitAdicionado.getId() <= 0) {
+                throw new PersistenceException("Falha ao salvar o hábito ou obter ID gerado.");
+            }
+            System.out.println("HabitService: Hábito adicionado com ID: " + habitAdicionado.getId());
+            return habitAdicionado;
+        } catch (Exception e) {
+            throw new PersistenceException("Erro de persistência ao adicionar hábito: " + e.getMessage(), e);
         }
-        System.out.println("HabitService: Hábito adicionado com ID: " + habitAdicionado.getId());
-        return habitAdicionado;
     }
 
     @Override
-    public Habit getHabitById(int habitId) throws HabitNotFoundException {
+    public Habit getHabitById(int habitId) throws HabitNotFoundException, PersistenceException {
         if (habitId <= 0) {
-             throw new HabitNotFoundException("ID do hábito inválido: " + habitId + ". IDs devem ser positivos.");
+            // Esta exceção é mais apropriada aqui, pois o ID é inválido antes mesmo de ir ao DAO
+            throw new HabitNotFoundException("ID do hábito inválido: " + habitId + ". IDs devem ser positivos.");
         }
-        Habit habit = habitDAO.getHabitById(habitId);
-        if (habit == null) {
-            throw new HabitNotFoundException("Hábito com ID " + habitId + " não encontrado.");
+        try {
+            Habit habit = habitDAO.getHabitById(habitId);
+            if (habit == null) {
+                throw new HabitNotFoundException("Hábito com ID " + habitId + " não encontrado.");
+            }
+            System.out.println("HabitService: Hábito encontrado: " + habit.getName());
+            return habit;
+        } catch (HabitNotFoundException e) {
+            throw e; // Relança a exceção específica
+        } catch (Exception e) { // Captura outras exceções do DAO (ex: SQLException)
+            throw new PersistenceException("Erro de persistência ao buscar hábito por ID: " + habitId, e);
         }
-        System.out.println("HabitService: Hábito encontrado: " + habit.getName());
-        return habit;
     }
 
     @Override
@@ -80,127 +116,183 @@ public class HabitService implements HabitTrackerServiceAPI { // Implementa a no
             throw new ValidationException("Nome do hábito não pode ser vazio na atualização.");
         }
 
-        // Verifica se o hábito existe antes de tentar atualizar
-        // O método getHabitById já lança HabitNotFoundException se não encontrar
-        getHabitById(habitToUpdate.getId()); // Se não existir, lança exceção aqui
+        getHabitById(habitToUpdate.getId()); // Valida se existe
 
-        boolean sucessoNoDAO = habitDAO.updateHabit(habitToUpdate); 
-        if (sucessoNoDAO) {
-            System.out.println("HabitService: Hábito com ID " + habitToUpdate.getId() + " atualizado com sucesso no DAO.");
-            // Re-busca do DAO para garantir que temos o objeto mais atualizado e para consistência de retorno
-            Habit habitAtualizado = habitDAO.getHabitById(habitToUpdate.getId());
-            if (habitAtualizado == null) { // Inesperado se o update foi sucesso
-                 throw new PersistenceException("Falha crítica ao re-buscar o hábito após atualização bem-sucedida, ID: " + habitToUpdate.getId());
+        try {
+            boolean sucessoNoDAO = habitDAO.updateHabit(habitToUpdate);
+            if (sucessoNoDAO) {
+                System.out.println("HabitService: Hábito com ID " + habitToUpdate.getId() + " atualizado.");
+                Habit habitAtualizado = habitDAO.getHabitById(habitToUpdate.getId());
+                if (habitAtualizado == null) {
+                    throw new PersistenceException("Falha crítica: Hábito não encontrado após atualização, ID: " + habitToUpdate.getId());
+                }
+                return habitAtualizado;
+            } else {
+                throw new PersistenceException("Falha ao atualizar o hábito no banco (DAO retornou false), ID: " + habitToUpdate.getId());
             }
-            return habitAtualizado;
-        } else {
-            // Se o DAO retornou false, pode ser que o ID não existia (já checado) ou outro erro de DB
-            System.err.println("HabitService: Falha ao atualizar hábito com ID " + habitToUpdate.getId() + " no DAO (nenhuma linha afetada).");
-            throw new PersistenceException("Falha ao atualizar o hábito no banco de dados (nenhuma linha afetada ou erro), ID: " + habitToUpdate.getId());
+        } catch (Exception e) {
+            if (e instanceof HabitNotFoundException || e instanceof ValidationException || e instanceof PersistenceException) {
+                throw e;
+            }
+            throw new PersistenceException("Erro de persistência ao atualizar hábito: " + e.getMessage(), e);
         }
     }
 
     @Override
     public boolean deleteHabit(int habitId) throws HabitNotFoundException, PersistenceException {
-         if (habitId <= 0) {
-            throw new HabitNotFoundException("ID do hábito inválido para exclusão: " + habitId + ". IDs devem ser positivos.");
+        if (habitId <= 0) {
+            throw new HabitNotFoundException("ID do hábito inválido para exclusão: " + habitId);
         }
-        // Verifica se o hábito existe antes de tentar deletar
-        getHabitById(habitId); // Lança HabitNotFoundException se não existir
+        getHabitById(habitId); // Valida se existe
 
-        boolean sucessoNoDAO = habitDAO.deleteHabit(habitId);
-        if (!sucessoNoDAO) {
-            // Se chegou aqui, e o hábito existia, a falha no delete é um erro de persistência
-            throw new PersistenceException("Falha ao excluir o hábito com ID " + habitId + " do banco de dados (operação DAO retornou false).");
+        try {
+            boolean sucessoNoDAO = habitDAO.deleteHabit(habitId);
+            if (!sucessoNoDAO) {
+                throw new PersistenceException("Falha ao excluir o hábito com ID " + habitId + " (DAO retornou false).");
+            }
+            System.out.println("HabitService: Hábito com ID " + habitId + " excluído.");
+            return true;
+        } catch (Exception e) {
+            if (e instanceof HabitNotFoundException || e instanceof PersistenceException) {
+                throw e;
+            }
+            throw new PersistenceException("Erro de persistência ao excluir hábito: " + e.getMessage(), e);
         }
-        System.out.println("HabitService: Hábito com ID " + habitId + " excluído com sucesso.");
-        return true;
     }
+
+    @Override
+    public Usuario getUsuarioById(int usuarioId) throws UserNotFoundException, PersistenceException {
+        if (usuarioId <= 0) {
+            throw new UserNotFoundException("ID de usuário inválido: " + usuarioId + ". IDs devem ser positivos.");
+        }
+        try {
+            Usuario usuario = usuarioDAO.getUsuarioById(usuarioId);
+            if (usuario == null) {
+                throw new UserNotFoundException("Usuário com ID " + usuarioId + " não encontrado.");
+            }
+            System.out.println("HabitService: Usuário encontrado: " + usuario.getNome() + " (ID: " + usuario.getId() + ")");
+            return usuario;
+        } catch (UserNotFoundException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new PersistenceException("Erro de persistência ao buscar usuário com ID: " + usuarioId, e);
+        }
+    }
+
+    @Override
+public Usuario addUsuario(String nome) throws PersistenceException, ValidationException {
+    if (nome == null || nome.trim().isEmpty()) {
+        throw new ValidationException("O nome do usuário não pode ser vazio.");
+    }
+    if (nome.trim().length() > 100) {
+        throw new ValidationException("O nome do usuário é muito longo (máximo 100 caracteres).");
+    }
+
+    // CORREÇÃO: Usar o construtor Usuario(String nome) existente
+    Usuario novoUsuario = new Usuario(nome.trim());
+    // O construtor Usuario(String nome) já define os pontos como 0.
+
+    try {
+        Usuario usuarioCriado = usuarioDAO.addUsuario(novoUsuario); // Assumindo que seu DAO lida com isso
+        if (usuarioCriado == null || usuarioCriado.getId() <= 0) {
+            // Esta verificação é importante se o DAO puder retornar null
+            // ou se o ID não for preenchido corretamente após a inserção.
+            throw new PersistenceException("Falha ao criar o usuário no banco de dados ou ID não retornado.");
+        }
+        System.out.println("HabitService: Usuário '" + usuarioCriado.getNome() + "' criado com ID: " + usuarioCriado.getId());
+        return usuarioCriado;
+    } catch (Exception e) { // Captura qualquer exceção do DAO (ex: SQLException, ConstraintViolationException)
+        // Logue o erro original se tiver um sistema de log
+        // logger.error("Erro de persistência ao tentar adicionar novo usuário: " + nome, e);
+        throw new PersistenceException("Erro de persistência ao tentar adicionar novo usuário: " + e.getMessage(), e);
+    }
+}
 
     @Override
     public FeedbackMarcacaoDTO marcarHabitoComoFeito(int usuarioId, int habitoId, LocalDate data)
             throws UserNotFoundException, HabitNotFoundException, PersistenceException, ValidationException {
         
-        Usuario usuarioParaMarcar = usuarioDAO.getUsuarioById(usuarioId);
-        if (usuarioParaMarcar == null) {
-            throw new UserNotFoundException("Usuário com ID " + usuarioId + " não encontrado para marcar hábito.");
-        }
-        // getHabitById já lança HabitNotFoundException se não encontrar o hábito
-        Habit habitParaMarcar = this.getHabitById(habitoId); // Usa o método da própria classe que já lança exceção
+        Usuario usuarioParaMarcar = getUsuarioById(usuarioId);
+        Habit habitParaMarcar = getHabitById(habitoId);
         
         if (data == null) {
-            throw new ValidationException("Data para marcar hábito não pode ser nula."); // Usando ValidationException
+            throw new ValidationException("Data para marcar hábito não pode ser nula.");
         }
 
-        final boolean STATUS_A_MARCAR_COMO_FEITO = true; // Esta chamada da API sempre marca como feito
-        ProgressoDiario progressoExistente = progressoDiarioDAO.getProgresso(usuarioId, habitoId, data);
-        ProgressoDiario progressoProcessado = null;
+        final boolean STATUS_A_MARCAR_COMO_FEITO = true;
+        ProgressoDiario progressoExistente = null;
+        try {
+            progressoExistente = progressoDiarioDAO.getProgresso(usuarioId, habitoId, data);
+        } catch (Exception e) {
+            throw new PersistenceException("Erro ao verificar progresso existente.", e);
+        }
+
         boolean foiUmaNovaConclusaoReal = false;
-        int pontosGanhosPeloHabito = 0;
+        int pontosGanhosPeloHabito = 10; // Placeholder: Idealmente viria de habitParaMarcar.getPontosRecompensa();
 
         if (progressoExistente != null) {
             if (progressoExistente.isStatusCumprido() == STATUS_A_MARCAR_COMO_FEITO) {
-                progressoProcessado = progressoExistente;
-                System.out.println("HabitService: Progresso (ID: " + progressoExistente.getId() + ") já existe com status 'cumprido'.");
+                System.out.println("HabitService: Progresso (ID: " + progressoExistente.getId() + ") já existe como 'cumprido'.");
+                 return new FeedbackMarcacaoDTO(
+                    true,
+                    "Hábito já estava marcado como feito para esta data.",
+                    0,
+                    usuarioParaMarcar.getPontos(),
+                    Collections.emptyList()
+                );
             } else {
-                // Progresso existe mas com status 'não cumprido'.
-                // Seu DAO ProgressoDiarioDAO não tem um método 'update'.
-                // O método 'addProgresso' falharia por constraint de chave única.
-                // Idealmente, você adicionaria um método updateStatus no ProgressoDiarioDAO.
-                // Por agora, vamos indicar que não podemos alterar e retornar feedback disso.
-                System.err.println("HabitService: Progresso (ID: " + progressoExistente.getId() + ") já existe com status 'não cumprido'. Atualização de status não implementada no DAO.");
-                return new FeedbackMarcacaoDTO(false, "Hábito já registrado como 'não cumprido'. Alteração de status não suportada no momento.");
+                System.err.println("HabitService: Progresso (ID: " + progressoExistente.getId() + ") já existe com status 'não cumprido'. Alteração não suportada.");
+                throw new ValidationException("Hábito já registrado como 'não cumprido' para esta data. Alteração não suportada.");
             }
         } else {
-            // Progresso não existe, criar novo.
             ProgressoDiario novoProgresso = new ProgressoDiario(usuarioId, habitoId, data, STATUS_A_MARCAR_COMO_FEITO);
-            progressoProcessado = progressoDiarioDAO.addProgresso(novoProgresso);
-            if (progressoProcessado == null) {
-                throw new PersistenceException("Falha ao adicionar novo progresso para hábito ID: " + habitoId + " e usuário ID: " + usuarioId);
+            ProgressoDiario progressoProcessado = null;
+            try {
+                progressoProcessado = progressoDiarioDAO.addProgresso(novoProgresso);
+            } catch (Exception e) {
+                throw new PersistenceException("Falha ao adicionar novo progresso.", e);
+            }
+
+            if (progressoProcessado == null || progressoProcessado.getId() <= 0) {
+                throw new PersistenceException("Falha ao salvar novo progresso ou obter ID gerado.");
             }
             System.out.println("HabitService: Novo progresso adicionado (ID: " + progressoProcessado.getId() + ").");
-            if (STATUS_A_MARCAR_COMO_FEITO) {
-                foiUmaNovaConclusaoReal = true;
-            }
+            foiUmaNovaConclusaoReal = true;
         }
 
         List<Conquista> novasConquistasNestaRodada = Collections.emptyList();
-        // O objeto usuarioParaMarcar tem os pontos ANTES desta operação.
-        // Vamos pegar uma cópia ou usar os valores e atualizar o objeto se necessário.
         int pontosAtuaisDoUsuario = usuarioParaMarcar.getPontos();
 
         if (foiUmaNovaConclusaoReal) {
-            // Se o seu modelo Habit tiver um campo para pontos, use-o. Ex: habitParaMarcar.getPontosRecompensa()
-            pontosGanhosPeloHabito = 10; // Valor fixo de exemplo
             int pontosUsuarioAposHabito = pontosAtuaisDoUsuario + pontosGanhosPeloHabito;
             
-            if (!usuarioDAO.updatePontosUsuario(usuarioId, pontosUsuarioAposHabito)) {
-                throw new PersistenceException("Falha ao atualizar pontos do usuário (" + usuarioId + ") após marcar hábito.");
+            try {
+                if (!usuarioDAO.updatePontosUsuario(usuarioId, pontosUsuarioAposHabito)) {
+                    throw new PersistenceException("Falha ao atualizar pontos do usuário (" + usuarioId + ").");
+                }
+            } catch (Exception e) {
+                 throw new PersistenceException("Erro de persistência ao atualizar pontos do usuário.", e);
             }
-            usuarioParaMarcar.setPontos(pontosUsuarioAposHabito); // Atualiza o objeto em memória
-            System.out.println("HabitService: Usuário ID " + usuarioId + " ganhou " + pontosGanhosPeloHabito + " pontos pelo hábito. Total parcial: " + pontosUsuarioAposHabito);
+            usuarioParaMarcar.setPontos(pontosUsuarioAposHabito);
+            System.out.println("HabitService: Usuário ID " + usuarioId + " ganhou " + pontosGanhosPeloHabito + " pontos. Total: " + pontosUsuarioAposHabito);
             
-            // Passa o objeto 'usuarioParaMarcar' que agora tem os pontos atualizados (pelo hábito)
             novasConquistasNestaRodada = verificarEConcederConquistasInterno(usuarioId, usuarioParaMarcar);
         }
 
-        // usuarioParaMarcar.getPontos() agora reflete o total após hábito e possíveis bônus de conquista.
         return new FeedbackMarcacaoDTO(
-            true, 
+            true,
             foiUmaNovaConclusaoReal ? "Hábito marcado como feito com sucesso!" : "Hábito já estava marcado como feito.",
             pontosGanhosPeloHabito,
-            usuarioParaMarcar.getPontos(), 
+            usuarioParaMarcar.getPontos(),
             novasConquistasNestaRodada
         );
     }
 
-    // Renomeado para evitar conflito com um possível método público futuro na API se necessário.
-    // Este método modifica o objeto Usuario passado (usuarioParaAtualizarPontos)
-    private List<Conquista> verificarEConcederConquistasInterno(int usuarioId, Usuario usuarioParaAtualizarPontos) throws UserNotFoundException, PersistenceException {
-        System.out.println("HabitService: Verificando conquistas para usuário ID: " + usuarioId + " com " + usuarioParaAtualizarPontos.getPontos() + " pontos.");
+    private List<Conquista> verificarEConcederConquistasInterno(int usuarioId, Usuario usuarioComPontosAtualizados) throws UserNotFoundException, PersistenceException {
+        System.out.println("HabitService: Verificando conquistas para usuário ID: " + usuarioId + " com " + usuarioComPontosAtualizados.getPontos() + " pontos.");
 
-        List<Conquista> todasAsDefinicoes = conquistaService.getAllConquistaDefinicoes();
-        List<Conquista> conquistasAtuaisDoUsuario = conquistaService.getConquistasDoUsuario(usuarioId);
+        List<Conquista> todasAsDefinicoes = getAllConquistasPossiveis();
+        List<Conquista> conquistasAtuaisDoUsuario = getConquistasDesbloqueadasUsuario(usuarioId);
         List<Conquista> novasConquistasDesbloqueadasNestaRodada = new ArrayList<>();
 
         for (Conquista definicaoConquista : todasAsDefinicoes) {
@@ -214,34 +306,53 @@ public class HabitService implements HabitTrackerServiceAPI { // Implementa a no
 
             if (!usuarioJaPossui) {
                 boolean criterioAtendido = false;
-                // EXEMPLOS DE CRITÉRIOS (você precisará expandir isso):
+                // EXEMPLOS DE CRITÉRIOS (você precisará expandir e ajustar à sua classe Conquista):
                 if ("Primeiros Passos".equalsIgnoreCase(definicaoConquista.getNome())) {
-                    int totalCumpridos = progressoDiarioDAO.getCountProgressoCumprido(usuarioId);
-                    if (totalCumpridos >= 1) criterioAtendido = true;
-                } else if ("Pontuador Nato".equalsIgnoreCase(definicaoConquista.getNome())) {
-                    // Usa os pontos do objeto Usuario que foi passado, que pode já incluir pontos do hábito.
-                    if (usuarioParaAtualizarPontos.getPontos() >= 50) criterioAtendido = true; 
+                    // Este critério pode ser, por exemplo, se o usuário tem > 0 pontos
+                    // ou se completou pelo menos 1 hábito.
+                    // int totalCumpridos = progressoDiarioDAO.getCountProgressoCumprido(usuarioId);
+                    // if (totalCumpridos >= 1) criterioAtendido = true;
+                    if (usuarioComPontosAtualizados.getPontos() > 0) { // Exemplo simplificado
+                        criterioAtendido = true;
+                    }
                 }
+                // CORREÇÃO 1: A lógica de "Pontuador Nato" foi comentada pois getCondicaoPontos() não existe.
+                // Adapte esta seção com os atributos reais da sua classe Conquista.
+                /*
+                else if ("Pontuador Nato".equalsIgnoreCase(definicaoConquista.getNome())) {
+                    // Exemplo: Suponha que a definição da conquista tenha um campo para a pontuação necessária.
+                    // if (usuarioComPontosAtualizados.getPontos() >= definicaoConquista.getPontosNecessariosParaEstaConquista()) {
+                    // criterioAtendido = true;
+                    // }
+                    // Como não temos getCondicaoPontos(), vamos usar um valor fixo para demonstração:
+                    if (usuarioComPontosAtualizados.getPontos() >= 50) { // Valor de exemplo
+                         criterioAtendido = true;
+                    }
+                }
+                */
                 // Adicione mais 'else if' para outras conquistas
 
                 if (criterioAtendido) {
                     System.out.println("HabitService: Critério para conquista '" + definicaoConquista.getNome() + "' ATENDIDO.");
-                    if (conquistaService.darConquistaParaUsuario(usuarioId, definicaoConquista.getId())) {
-                        System.out.println("HabitService: Conquista '" + definicaoConquista.getNome() + "' concedida.");
-                        novasConquistasDesbloqueadasNestaRodada.add(definicaoConquista);
+                    try {
+                        if (conquistaService.darConquistaParaUsuario(usuarioId, definicaoConquista.getId())) {
+                            System.out.println("HabitService: Conquista '" + definicaoConquista.getNome() + "' concedida.");
+                            novasConquistasDesbloqueadasNestaRodada.add(definicaoConquista);
 
-                        if (definicaoConquista.getPontosBonus() > 0) {
-                            int pontosAntesBonusConquista = usuarioParaAtualizarPontos.getPontos();
-                            int pontosAposBonusConquista = pontosAntesBonusConquista + definicaoConquista.getPontosBonus();
-                            if (!usuarioDAO.updatePontosUsuario(usuarioId, pontosAposBonusConquista)) {
-                                throw new PersistenceException("Falha ao aplicar bônus de " + definicaoConquista.getPontosBonus() + " pontos pela conquista '" + definicaoConquista.getNome() + "'.");
+                            if (definicaoConquista.getPontosBonus() > 0) {
+                                int pontosAntesBonusConquista = usuarioComPontosAtualizados.getPontos();
+                                int pontosAposBonusConquista = pontosAntesBonusConquista + definicaoConquista.getPontosBonus();
+                                if (!usuarioDAO.updatePontosUsuario(usuarioId, pontosAposBonusConquista)) {
+                                    throw new PersistenceException("Falha ao aplicar bônus da conquista '" + definicaoConquista.getNome() + "'.");
+                                }
+                                usuarioComPontosAtualizados.setPontos(pontosAposBonusConquista);
+                                System.out.println("HabitService: Bônus de " + definicaoConquista.getPontosBonus() + " pontos concedido. Total: " + pontosAposBonusConquista);
                             }
-                            usuarioParaAtualizarPontos.setPontos(pontosAposBonusConquista); // Atualiza objeto em memória
-                            System.out.println("HabitService: Bônus de " + definicaoConquista.getPontosBonus() + " pontos concedido. Novo total: " + pontosAposBonusConquista);
+                        } else {
+                            System.err.println("HabitService: Falha ao registrar '" + definicaoConquista.getNome() + "' no DAO.");
                         }
-                    } else {
-                        System.err.println("HabitService: Falha ao registrar a conquista '" + definicaoConquista.getNome() + "' para o usuário no DAO, mas critério foi atendido.");
-                        // Decida se isso deve lançar uma PersistenceException ou ser apenas um log.
+                    } catch (Exception e) {
+                        throw new PersistenceException("Erro de persistência ao conceder conquista: " + e.getMessage(), e);
                     }
                 }
             }
@@ -249,34 +360,30 @@ public class HabitService implements HabitTrackerServiceAPI { // Implementa a no
         return novasConquistasDesbloqueadasNestaRodada;
     }
 
-
     @Override
-    public int getPontuacaoUsuario(int usuarioId) throws UserNotFoundException {
-        Usuario usuario = usuarioDAO.getUsuarioById(usuarioId);
-        if (usuario == null) {
-            throw new UserNotFoundException("Usuário com ID " + usuarioId + " não encontrado ao buscar pontuação.");
-        }
+    public int getPontuacaoUsuario(int usuarioId) throws UserNotFoundException, PersistenceException {
+        Usuario usuario = getUsuarioById(usuarioId);
         return usuario.getPontos();
     }
 
     @Override
-    public List<Conquista> getConquistasDesbloqueadasUsuario(int usuarioId) throws UserNotFoundException {
-        // Primeiro, verifica se o usuário existe para lançar UserNotFoundException se aplicável.
-        if (usuarioDAO.getUsuarioById(usuarioId) == null) {
-            throw new UserNotFoundException("Usuário com ID " + usuarioId + " não encontrado ao buscar conquistas desbloqueadas.");
+    public List<Conquista> getConquistasDesbloqueadasUsuario(int usuarioId) throws UserNotFoundException, PersistenceException {
+        getUsuarioById(usuarioId); // Valida se o usuário existe
+        try {
+            List<Conquista> conquistas = conquistaService.getConquistasDoUsuario(usuarioId);
+            return conquistas != null ? conquistas : new ArrayList<>();
+        } catch (Exception e) {
+            throw new PersistenceException("Erro de persistência ao buscar conquistas do usuário.", e);
         }
-        List<Conquista> conquistas = conquistaService.getConquistasDoUsuario(usuarioId);
-        return conquistas != null ? conquistas : new ArrayList<>();
     }
 
     @Override
-    public List<Conquista> getAllConquistasPossiveis() {
-        List<Conquista> definicoes = conquistaService.getAllConquistaDefinicoes();
-        return definicoes != null ? definicoes : new ArrayList<>();
+    public List<Conquista> getAllConquistasPossiveis() throws PersistenceException {
+        try {
+            List<Conquista> definicoes = conquistaService.getAllConquistaDefinicoes();
+            return definicoes != null ? definicoes : new ArrayList<>();
+        } catch (Exception e) {
+            throw new PersistenceException("Erro de persistência ao buscar todas as definições de conquistas.", e);
+        }
     }
-
-    // O método main() de teste que você tinha aqui foi removido.
-    // Recomenda-se criar testes unitários formais (ex: com JUnit) ou adaptar
-    // o main em uma classe separada, agora lidando com try-catch para as exceções
-    // e os novos tipos de retorno.
 }

@@ -107,7 +107,7 @@ public class ProgressoDiarioDAO {
         // --- PONTO DA CORREÇÃO ---
         // Antes, você poderia ter algo que esperava um boolean.
         // Agora, habitDAO.addHabit retorna um objeto Habit (ou null se falhar)
-        Habit novoHabitoObj = new Habit(nomeHabitoTesteProg, "Teste de progresso no main do ProgressoDiarioDAO", LocalDate.now());
+        Habit novoHabitoObj = new Habit(nomeHabitoTesteProg, "Teste de progresso no main do ProgressoDiarioDAO", LocalDate.now(),uTeste.getId());
         Habit habitoAdicionadoNoTeste = habitDAO.addHabit(novoHabitoObj); // Chama o addHabit que retorna Habit
 
         // A verificação de sucesso agora é se o objeto não é nulo E se tem um ID válido
