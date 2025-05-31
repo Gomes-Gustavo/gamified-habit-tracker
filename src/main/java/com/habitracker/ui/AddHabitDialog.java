@@ -7,33 +7,46 @@ import com.habitracker.serviceapi.exceptions.ValidationException;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.border.TitledBorder; // Para o painel de dias
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import java.time.DayOfWeek; // IMPORTADO
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.HashSet;   // IMPORTADO
+import java.util.Set;       // IMPORTADO
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.time.LocalDate;
+
 
 public class AddHabitDialog extends JDialog {
 
     private JTextField nomeField;
     private JTextArea descricaoArea;
+    private JCheckBox chkDefinirHorario;
+    private JSpinner spnHoras;
+    private JSpinner spnMinutos;
+    private JLabel lblHorarioSeparador;
+    private JLabel lblHorario;
+
+    // Checkboxes para dias da semana
+    private JCheckBox chkSeg, chkTer, chkQua, chkQui, chkSex, chkSab, chkDom;
+
     private JButton salvarButton;
     private JButton cancelarButton;
 
     private HabitTrackerServiceAPI habitService;
-    private int usuarioId; // Para associar o hábito ao usuário
+    private int usuarioId;
     private Habit novoHabito = null;
     private boolean habitoAdicionadoComSucesso = false;
     private boolean usarTemaEscuro;
 
-    // Cores para consistência com o tema (similar ao CreateUserDialog)
+    // Cores
     private final Color COR_FUNDO_DIALOGO_ESCURO = new Color(55, 55, 55);
     private final Color COR_PAINEL_INTERNO_ESCURO = new Color(65, 65, 65);
     private final Color COR_TEXTO_ESCURO = new Color(210, 210, 210);
-    private final Color COR_BORDA_TEXTFIELD_ESCURO = new Color(85,85,85);
+    private final Color COR_BORDA_ESCURO = new Color(85,85,85); // Renomeado para uso geral
     private final Color COR_TEXTFIELD_FUNDO_ESCURO = new Color(50,50,50);
-    private final Color COR_BOTAO_SALVAR_ESCURO_BG = new Color(0, 120, 0); // Verde
+    private final Color COR_BOTAO_SALVAR_ESCURO_BG = new Color(0, 120, 0);
     private final Color COR_BOTAO_SALVAR_ESCURO_FG = Color.WHITE;
     private final Color COR_BOTAO_CANCELAR_ESCURO_BG = new Color(90, 90, 90);
     private final Color COR_BOTAO_CANCELAR_ESCURO_FG = COR_TEXTO_ESCURO;
@@ -42,13 +55,14 @@ public class AddHabitDialog extends JDialog {
     public AddHabitDialog(Frame owner, boolean modal, HabitTrackerServiceAPI service, int currentUserId, boolean usarTemaEscuroGlobal) {
         super(owner, "Adicionar Novo Hábito", modal);
         this.habitService = service;
-        this.usuarioId = currentUserId; // Armazena o ID do usuário atual
+        this.usuarioId = currentUserId;
         this.usarTemaEscuro = usarTemaEscuroGlobal;
 
-        initComponents(); // Chama antes de stylizeComponents
+        initComponents();
         stylizeComponents();
+        toggleHorarioFields(false);
 
-        pack();
+        setSize(450, 480); // Aumentar altura para os dias da semana
         setResizable(false);
         setLocationRelativeTo(owner);
         setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
@@ -72,42 +86,76 @@ public class AddHabitDialog extends JDialog {
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.anchor = GridBagConstraints.WEST;
 
+        // Linha 0: Nome
         JLabel nomeLabel = new JLabel("Nome:");
         gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0;
         formPanel.add(nomeLabel, gbc);
-
-        nomeField = new JTextField(25); // Aumentei um pouco a largura
-        gbc.gridx = 1; gbc.gridy = 0; gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL;
+        nomeField = new JTextField(25);
+        gbc.gridx = 1; gbc.gridy = 0; gbc.gridwidth = 3; gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL;
         formPanel.add(nomeField, gbc);
         SwingUtilities.invokeLater(() -> nomeField.requestFocusInWindow());
 
-
+        // Linha 1: Descrição
         JLabel descricaoLabel = new JLabel("Descrição:");
-        gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0; gbc.fill = GridBagConstraints.NONE; // Reset fill
-        gbc.anchor = GridBagConstraints.NORTHWEST; // Alinha label no topo
+        gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0; gbc.gridwidth = 1; gbc.fill = GridBagConstraints.NONE;
+        gbc.anchor = GridBagConstraints.NORTHWEST;
         formPanel.add(descricaoLabel, gbc);
-
-        descricaoArea = new JTextArea(5, 25);
-        descricaoArea.setLineWrap(true); // Quebra de linha automática
-        descricaoArea.setWrapStyleWord(true); // Quebra por palavra
+        descricaoArea = new JTextArea(3, 25); // Reduzido para caber mais campos
+        descricaoArea.setLineWrap(true);
+        descricaoArea.setWrapStyleWord(true);
         JScrollPane scrollPaneDescricao = new JScrollPane(descricaoArea);
-        gbc.gridx = 1; gbc.gridy = 1; gbc.weightx = 1.0; gbc.weighty = 1.0; gbc.fill = GridBagConstraints.BOTH;
+        gbc.gridx = 1; gbc.gridy = 1; gbc.gridwidth = 3; gbc.weightx = 1.0; gbc.weighty = 0.8; gbc.fill = GridBagConstraints.BOTH;
         formPanel.add(scrollPaneDescricao, gbc);
 
+        // Linha 2: Checkbox para Horário
+        chkDefinirHorario = new JCheckBox("Definir Horário?");
+        chkDefinirHorario.addActionListener(e -> toggleHorarioFields(chkDefinirHorario.isSelected()));
+        gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 4; gbc.weightx = 0; gbc.weighty = 0; gbc.fill = GridBagConstraints.NONE;
+        gbc.anchor = GridBagConstraints.WEST;
+        formPanel.add(chkDefinirHorario, gbc);
+        
+        // Linha 3: Campos de Horário
+        lblHorario = new JLabel("Horário:");
+        gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 1;
+        formPanel.add(lblHorario, gbc);
+        SpinnerNumberModel horasModel = new SpinnerNumberModel(12, 0, 23, 1);
+        spnHoras = new JSpinner(horasModel);
+        spnHoras.setEditor(new JSpinner.NumberEditor(spnHoras, "00"));
+        gbc.gridx = 1; gbc.gridy = 3; gbc.weightx = 0.1; gbc.fill = GridBagConstraints.HORIZONTAL;
+        formPanel.add(spnHoras, gbc);
+        lblHorarioSeparador = new JLabel(":");
+        gbc.gridx = 2; gbc.gridy = 3; gbc.weightx = 0; gbc.fill = GridBagConstraints.NONE;
+        formPanel.add(lblHorarioSeparador, gbc);
+        SpinnerNumberModel minutosModel = new SpinnerNumberModel(0, 0, 59, 1);
+        spnMinutos = new JSpinner(minutosModel);
+        spnMinutos.setEditor(new JSpinner.NumberEditor(spnMinutos, "00"));
+        gbc.gridx = 3; gbc.gridy = 3; gbc.weightx = 0.1; gbc.fill = GridBagConstraints.HORIZONTAL;
+        formPanel.add(spnMinutos, gbc);
+
+        // Linha 4: Dias da Semana
+        JPanel diasPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 3, 2)); // Layout mais compacto
+        chkSeg = new JCheckBox("Seg"); chkTer = new JCheckBox("Ter"); chkQua = new JCheckBox("Qua");
+        chkQui = new JCheckBox("Qui"); chkSex = new JCheckBox("Sex"); chkSab = new JCheckBox("Sáb");
+        chkDom = new JCheckBox("Dom");
+        JCheckBox[] checkboxesDias = {chkSeg, chkTer, chkQua, chkQui, chkSex, chkSab, chkDom};
+        for(JCheckBox chk : checkboxesDias) { diasPanel.add(chk); }
+        
+        TitledBorder diasBorder = BorderFactory.createTitledBorder("Dias da Semana");
+        diasPanel.setBorder(diasBorder);
+
+        gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 4; gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.CENTER; // Ou WEST
+        formPanel.add(diasPanel, gbc);
+
+
+        // Painel de Botões
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         buttonPanel.setBorder(new EmptyBorder(10,0,0,0));
-
         salvarButton = new JButton("Salvar");
         salvarButton.addActionListener(e -> salvarHabito());
         getRootPane().setDefaultButton(salvarButton);
-
         cancelarButton = new JButton("Cancelar");
-        cancelarButton.addActionListener(e -> {
-            habitoAdicionadoComSucesso = false;
-            novoHabito = null;
-            dispose();
-        });
-
+        cancelarButton.addActionListener(e -> onCancelar());
         buttonPanel.add(cancelarButton);
         buttonPanel.add(salvarButton);
 
@@ -115,104 +163,188 @@ public class AddHabitDialog extends JDialog {
         mainPanel.add(buttonPanel, BorderLayout.SOUTH);
     }
 
+    private void toggleHorarioFields(boolean habilitar) {
+        lblHorario.setEnabled(habilitar);
+        spnHoras.setEnabled(habilitar);
+        lblHorarioSeparador.setEnabled(habilitar);
+        spnMinutos.setEnabled(habilitar);
+    }
+
     private void stylizeComponents() {
-        Font labelFont = new Font("Segoe UI", Font.PLAIN, 13);
-        Font fieldFont = new Font("Segoe UI", Font.PLAIN, 13);
-        Font buttonFont = new Font("Segoe UI", Font.BOLD, 12);
+        Font labelFont = new Font("Segoe UI", Font.PLAIN, 14);
+        Font fieldFont = new Font("Segoe UI", Font.PLAIN, 14);
+        Font buttonFont = new Font("Segoe UI", Font.BOLD, 13);
+        Font diasChkFont = new Font("Segoe UI", Font.PLAIN, 12);
+
 
         JPanel mainPanel = (JPanel) getContentPane();
-        JPanel formPanel = (JPanel) mainPanel.getComponent(0); // Assume formPanel é o primeiro
-        JPanel buttonPanel = (JPanel) mainPanel.getComponent(1); // Assume buttonPanel é o segundo
-        JLabel nomeLabel = (JLabel) formPanel.getComponent(0);
-        JLabel descricaoLabel = (JLabel) formPanel.getComponent(2); // Após nomeField
+        JPanel formPanel = (JPanel) mainPanel.getComponent(0); // Assume que formPanel é o primeiro
+        JPanel buttonPanel = (JPanel) mainPanel.getComponent(1); // Assume que buttonPanel é o segundo
+
+        // Acessar componentes por referência de instância é mais seguro
+        JLabel nomeLabel = (JLabel) findComponentByName(formPanel, "Nome:"); // Precisa de um método para buscar por texto/nome
+                                                                         // Ou acesse diretamente se forem campos da classe.
+                                                                         // Para simplificar, vou assumir que a ordem não mudou criticamente
+                                                                         // ou que são variáveis de instância.
+        // Os JLabels e JCheckBoxes são campos da classe agora.
 
         if (usarTemaEscuro) {
             mainPanel.setBackground(COR_FUNDO_DIALOGO_ESCURO);
             formPanel.setBackground(COR_PAINEL_INTERNO_ESCURO);
             formPanel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(COR_BORDA_TEXTFIELD_ESCURO),
-                new EmptyBorder(10,10,10,10)
-            ));
+                BorderFactory.createLineBorder(COR_BORDA_ESCURO), new EmptyBorder(10,10,10,10)));
             buttonPanel.setBackground(COR_FUNDO_DIALOGO_ESCURO);
 
-            nomeLabel.setForeground(COR_TEXTO_ESCURO);
-            descricaoLabel.setForeground(COR_TEXTO_ESCURO);
+            // Labels
+            for (Component comp : formPanel.getComponents()) {
+                if (comp instanceof JLabel) ((JLabel) comp).setForeground(COR_TEXTO_ESCURO);
+                if (comp instanceof JPanel && ((JPanel)comp).getBorder() instanceof TitledBorder) { // Para a borda dos dias
+                     TitledBorder tb = (TitledBorder) ((JPanel)comp).getBorder();
+                     tb.setTitleColor(COR_TEXTO_ESCURO);
+                     ((JPanel)comp).setOpaque(false);
+                }
+            }
+            chkDefinirHorario.setForeground(COR_TEXTO_ESCURO);
+            chkDefinirHorario.setBackground(COR_PAINEL_INTERNO_ESCURO);
+            
+            JCheckBox[] checkboxesDias = {chkSeg, chkTer, chkQua, chkQui, chkSex, chkSab, chkDom};
+            for(JCheckBox chk : checkboxesDias) {
+                 chk.setForeground(COR_TEXTO_ESCURO);
+                 chk.setOpaque(false); // Para que o fundo do diasPanel apareça
+                 chk.setFont(diasChkFont);
+            }
 
-            nomeField.setBackground(COR_TEXTFIELD_FUNDO_ESCURO);
-            nomeField.setForeground(COR_TEXTO_ESCURO);
+
+            // Fields
+            nomeField.setBackground(COR_TEXTFIELD_FUNDO_ESCURO); nomeField.setForeground(COR_TEXTO_ESCURO);
             nomeField.setCaretColor(COR_TEXTO_ESCURO);
             nomeField.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(COR_BORDA_TEXTFIELD_ESCURO),
-                new EmptyBorder(5, 8, 5, 8)
-            ));
+                BorderFactory.createLineBorder(COR_BORDA_ESCURO), new EmptyBorder(5, 8, 5, 8)));
 
-            descricaoArea.setBackground(COR_TEXTFIELD_FUNDO_ESCURO);
-            descricaoArea.setForeground(COR_TEXTO_ESCURO);
+            descricaoArea.setBackground(COR_TEXTFIELD_FUNDO_ESCURO); descricaoArea.setForeground(COR_TEXTO_ESCURO);
             descricaoArea.setCaretColor(COR_TEXTO_ESCURO);
-            // A borda do JScrollPane é geralmente controlada pelo UIManager
-            // Se precisar, pode fazer: ((JScrollPane)formPanel.getComponent(3)).setBorder(...)
+            // JScrollPane da descrição já deve ter sido pego pelo LookAndFeel
 
+            stylizeSpinner(spnHoras);
+            stylizeSpinner(spnMinutos);
 
-            salvarButton.setBackground(COR_BOTAO_SALVAR_ESCURO_BG);
-            salvarButton.setForeground(COR_BOTAO_SALVAR_ESCURO_FG);
+            salvarButton.setBackground(COR_BOTAO_SALVAR_ESCURO_BG); salvarButton.setForeground(COR_BOTAO_SALVAR_ESCURO_FG);
             salvarButton.setBorder(new EmptyBorder(8,15,8,15));
-
-            cancelarButton.setBackground(COR_BOTAO_CANCELAR_ESCURO_BG);
-            cancelarButton.setForeground(COR_BOTAO_CANCELAR_ESCURO_FG);
+            cancelarButton.setBackground(COR_BOTAO_CANCELAR_ESCURO_BG); cancelarButton.setForeground(COR_BOTAO_CANCELAR_ESCURO_FG);
             cancelarButton.setBorder(new EmptyBorder(8,15,8,15));
         } else {
-             formPanel.setOpaque(false);
-             buttonPanel.setOpaque(false);
-            // Estilos para tema claro (opcional, ou deixar o UIManager padrão)
+            // Estilo para tema claro, se necessário (ex: setOpaque(false) para painéis)
+            formPanel.setOpaque(false);
+            buttonPanel.setOpaque(false);
+            chkDefinirHorario.setOpaque(false);
+            JCheckBox[] checkboxesDias = {chkSeg, chkTer, chkQua, chkQui, chkSex, chkSab, chkDom};
+            for(JCheckBox chk : checkboxesDias) {
+                 chk.setOpaque(false);
+                 chk.setFont(diasChkFont);
+            }
+            //((JPanel)formPanel.getComponent(formPanel.getComponentCount()-1)).setOpaque(false); // diasPanel
         }
-        nomeLabel.setFont(labelFont);
-        descricaoLabel.setFont(labelFont);
+        
+        // Definir fontes
+        for (Component comp : formPanel.getComponents()) {
+            if (comp instanceof JLabel) ((JLabel) comp).setFont(labelFont);
+        }
+        chkDefinirHorario.setFont(labelFont);
         nomeField.setFont(fieldFont);
         descricaoArea.setFont(fieldFont);
         salvarButton.setFont(buttonFont);
         cancelarButton.setFont(buttonFont);
     }
+    
+    private void stylizeSpinner(JSpinner spinner) {
+        if (usarTemaEscuro) {
+            spinner.setBorder(BorderFactory.createLineBorder(COR_BORDA_ESCURO));
+            Component editor = spinner.getEditor();
+            if (editor instanceof JSpinner.DefaultEditor) {
+                JTextField tf = ((JSpinner.DefaultEditor) editor).getTextField();
+                tf.setForeground(COR_TEXTO_ESCURO);
+                tf.setBackground(COR_TEXTFIELD_FUNDO_ESCURO);
+                tf.setCaretColor(COR_TEXTO_ESCURO);
+                tf.setOpaque(true); // Garantir que o fundo seja pintado
+            }
+            // Estilizar botões do spinner (mais complexo, geralmente via UIManager)
+            for (Component comp : spinner.getComponents()) {
+                if (comp instanceof JButton) {
+                    ((JButton) comp).setBackground(COR_PAINEL_INTERNO_ESCURO);
+                    ((JButton) comp).setContentAreaFilled(false); // Pode precisar de mais para ícones
+                }
+            }
+        }
+        // Fontes para spinner já setadas em stylizeComponents para DefaultEditor
+        if (spinner.getEditor() instanceof JSpinner.DefaultEditor) {
+             ((JSpinner.DefaultEditor)spinner.getEditor()).getTextField().setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        }
+    }
 
+
+    private Component findComponentByName(Container container, String name) {
+        // Método auxiliar simples, idealmente você usaria nomes de componentes (component.setName())
+        // ou referências diretas. Isto é frágil.
+        for (Component comp : container.getComponents()) {
+            if (comp instanceof JLabel && name.equals(((JLabel) comp).getText())) {
+                return comp;
+            }
+        }
+        return null;
+    }
+
+
+    private void onCancelar() {
+        habitoAdicionadoComSucesso = false;
+        novoHabito = null;
+        dispose();
+    }
 
     private void salvarHabito() {
         String nome = nomeField.getText().trim();
         String descricao = descricaoArea.getText().trim();
 
         if (nome.isEmpty()) {
-            JOptionPane.showMessageDialog(this,
-                "O nome do hábito não pode ser vazio.",
-                "Erro de Validação",
-                JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "O nome do hábito não pode ser vazio.", "Erro de Validação", JOptionPane.ERROR_MESSAGE);
             nomeField.requestFocusInWindow();
             return;
         }
 
-        // ASSUMINDO que sua classe Habit tem um construtor como:
-        // public Habit(int usuarioId, String nome, String descricao, LocalDate creationDate)
-        // Ou que você tem um método setUsuarioId(int id) em Habit.
-        // Se não, você precisará ajustar a criação do objeto Habit.
-        Habit habitParaAdicionar = new Habit(nome, descricao, LocalDate.now(), this.usuarioId);
-        habitParaAdicionar.setUsuarioId(this.usuarioId); // ASSUMINDO que Habit tem setUsuarioId()
+        LocalTime horarioOpcional = null;
+        if (chkDefinirHorario.isSelected()) {
+            int horas = (Integer) spnHoras.getValue();
+            int minutos = (Integer) spnMinutos.getValue();
+            horarioOpcional = LocalTime.of(horas, minutos);
+        }
+
+        // Coletar dias da semana selecionados
+        Set<DayOfWeek> diasSelecionados = new HashSet<>();
+        if (chkSeg.isSelected()) diasSelecionados.add(DayOfWeek.MONDAY);
+        if (chkTer.isSelected()) diasSelecionados.add(DayOfWeek.TUESDAY);
+        if (chkQua.isSelected()) diasSelecionados.add(DayOfWeek.WEDNESDAY);
+        if (chkQui.isSelected()) diasSelecionados.add(DayOfWeek.THURSDAY);
+        if (chkSex.isSelected()) diasSelecionados.add(DayOfWeek.FRIDAY);
+        if (chkSab.isSelected()) diasSelecionados.add(DayOfWeek.SATURDAY);
+        if (chkDom.isSelected()) diasSelecionados.add(DayOfWeek.SUNDAY);
+
+        if (diasSelecionados.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Por favor, selecione pelo menos um dia da semana para o hábito.", "Validação", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        Habit habitParaAdicionar = new Habit(nome, descricao, LocalDate.now(), this.usuarioId, horarioOpcional);
+        habitParaAdicionar.setDiasDaSemana(diasSelecionados); // Definir os dias selecionados
 
         try {
             this.novoHabito = habitService.addHabit(habitParaAdicionar);
             this.habitoAdicionadoComSucesso = true;
             dispose();
         } catch (ValidationException ve) {
-            JOptionPane.showMessageDialog(this,
-                "Erro de validação do backend: " + ve.getMessage(),
-                "Erro de Validação",
-                JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Erro de validação: " + ve.getMessage(), "Erro de Validação", JOptionPane.ERROR_MESSAGE);
         } catch (PersistenceException pe) {
-            JOptionPane.showMessageDialog(this,
-                "Erro ao salvar o hábito: " + pe.getMessage(),
-                "Erro de Persistência",
-                JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Erro ao salvar o hábito: " + pe.getMessage(), "Erro de Persistência", JOptionPane.ERROR_MESSAGE);
         } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this,
-                "Ocorreu um erro inesperado: " + ex.getMessage(),
-                "Erro",
-                JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Ocorreu um erro inesperado: " + ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
             ex.printStackTrace();
         }
     }

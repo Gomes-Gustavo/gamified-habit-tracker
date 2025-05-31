@@ -6,67 +6,129 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Time;
+import java.sql.Types; // Para Types.TIME
+import java.time.DayOfWeek; // IMPORTADO
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.sql.Date;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.HashSet;   // IMPORTADO
+import java.util.Set;       // IMPORTADO
 
 public class HabitDAO {
 
-    /**
-     * Adiciona um novo hábito ao banco de dados.
-     * @param habit O objeto Habit a ser adicionado (com usuarioId preenchido).
-     * @return O objeto Habit com o ID atribuído pelo banco, ou null se a inserção falhar.
-     */
     public Habit addHabit(Habit habit) {
-        // AJUSTE SQL: Adicionar a coluna usuario_id
-        String sql = "INSERT INTO habits (name, description, creationDate, usuario_id) VALUES (?, ?, ?, ?)";
-        try (Connection conn = ConnectionFactory.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        String sqlHabit = "INSERT INTO habits (name, description, creationDate, usuario_id, horario_opcional) VALUES (?, ?, ?, ?, ?)";
+        Connection conn = null;
+        PreparedStatement pstmtHabit = null;
+        PreparedStatement pstmtDias = null;
+        ResultSet generatedKeys = null;
 
-            pstmt.setString(1, habit.getName());
-            pstmt.setString(2, habit.getDescription());
-            pstmt.setDate(3, Date.valueOf(habit.getCreationDate()));
-            pstmt.setInt(4, habit.getUsuarioId()); // AJUSTE: Definir o usuario_id
+        try {
+            conn = ConnectionFactory.getConnection();
+            conn.setAutoCommit(false); // Iniciar transação
 
-            int affectedRows = pstmt.executeUpdate();
+            pstmtHabit = conn.prepareStatement(sqlHabit, Statement.RETURN_GENERATED_KEYS);
+            pstmtHabit.setString(1, habit.getName());
+            pstmtHabit.setString(2, habit.getDescription());
+            pstmtHabit.setDate(3, Date.valueOf(habit.getCreationDate()));
+            pstmtHabit.setInt(4, habit.getUsuarioId());
+            if (habit.getHorarioOpcional() != null) {
+                pstmtHabit.setTime(5, Time.valueOf(habit.getHorarioOpcional()));
+            } else {
+                pstmtHabit.setNull(5, Types.TIME);
+            }
+
+            int affectedRows = pstmtHabit.executeUpdate();
 
             if (affectedRows > 0) {
-                try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
-                    if (generatedKeys.next()) {
-                        habit.setId(generatedKeys.getInt(1));
-                        return habit;
-                    } else {
-                        System.err.println("Falha ao obter o ID gerado para o hábito, embora a linha tenha sido inserida.");
-                        return null;
+                generatedKeys = pstmtHabit.getGeneratedKeys();
+                if (generatedKeys.next()) {
+                    habit.setId(generatedKeys.getInt(1));
+
+                    // Salvar os dias da semana na tabela de junção
+                    if (habit.getDiasDaSemana() != null && !habit.getDiasDaSemana().isEmpty()) {
+                        String sqlDias = "INSERT INTO habito_dias_semana (habito_id, dia_semana) VALUES (?, ?)";
+                        pstmtDias = conn.prepareStatement(sqlDias);
+                        for (DayOfWeek dia : habit.getDiasDaSemana()) {
+                            pstmtDias.setInt(1, habit.getId());
+                            pstmtDias.setString(2, dia.name()); // Armazena como "MONDAY", "TUESDAY", etc.
+                            pstmtDias.addBatch();
+                        }
+                        pstmtDias.executeBatch();
+                    }
+                    conn.commit(); // Finalizar transação com sucesso
+                    return habit;
+                }
+            }
+            conn.rollback(); // Se não conseguiu obter o ID gerado ou inserir o hábito principal
+        } catch (SQLException e) {
+            System.err.println("Erro de SQL ao adicionar hábito: " + e.getMessage());
+            e.printStackTrace();
+            if (conn != null) {
+                try {
+                    conn.rollback(); // Tenta reverter em caso de erro
+                } catch (SQLException ex) {
+                    System.err.println("Erro ao reverter transação: " + ex.getMessage());
+                }
+            }
+        } finally {
+            // Bloco finally para fechar recursos
+            try { if (generatedKeys != null) generatedKeys.close(); } catch (SQLException e) { e.printStackTrace(); }
+            try { if (pstmtDias != null) pstmtDias.close(); } catch (SQLException e) { e.printStackTrace(); }
+            try { if (pstmtHabit != null) pstmtHabit.close(); } catch (SQLException e) { e.printStackTrace(); }
+            try { 
+                if (conn != null) {
+                    conn.setAutoCommit(true); // Restaurar autoCommit
+                    conn.close(); 
+                }
+            } catch (SQLException e) { e.printStackTrace(); }
+        }
+        return null; // Retorna null se a adição falhou
+    }
+    
+    private Set<DayOfWeek> getDiasDaSemanaParaHabito(int habitoId, Connection conn) throws SQLException {
+        Set<DayOfWeek> dias = new HashSet<>();
+        String sql = "SELECT dia_semana FROM habito_dias_semana WHERE habito_id = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, habitoId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    try {
+                        dias.add(DayOfWeek.valueOf(rs.getString("dia_semana").toUpperCase()));
+                    } catch (IllegalArgumentException e) {
+                        System.err.println("Valor de dia_semana inválido no banco para habito_id " + habitoId + ": " + rs.getString("dia_semana"));
                     }
                 }
-            } else {
-                System.err.println("Nenhuma linha afetada ao tentar adicionar hábito: " + habit.getName());
-                return null;
             }
-        } catch (SQLException e) {
-            System.err.println("Erro de SQL ao adicionar hábito '" + habit.getName() + "': " + e.getMessage());
-            e.printStackTrace();
-            return null;
         }
+        return dias;
     }
 
-    public List<Habit> getAllHabits() { // Considere getAllHabitsByUserId(int userId) no futuro
+    private Habit mapResultSetToHabit(ResultSet rs, Connection conn) throws SQLException {
+        int id = rs.getInt("id");
+        String name = rs.getString("name");
+        String description = rs.getString("description");
+        LocalDate creationDate = rs.getDate("creationDate").toLocalDate();
+        int usuarioId = rs.getInt("usuario_id");
+        Time timeSQL = rs.getTime("horario_opcional");
+        LocalTime horarioOpcional = (timeSQL != null) ? timeSQL.toLocalTime() : null;
+
+        Habit habit = new Habit(id, name, description, creationDate, usuarioId, horarioOpcional);
+        habit.setDiasDaSemana(getDiasDaSemanaParaHabito(id, conn));
+        return habit;
+    }
+
+    public List<Habit> getAllHabits() { // Usado principalmente para testes ou admin, agora carrega dias
         List<Habit> habits = new ArrayList<>();
-        // AJUSTE SQL: Selecionar a coluna usuario_id
-        String sql = "SELECT id, name, description, creationDate, usuario_id FROM habits";
+        String sql = "SELECT id, name, description, creationDate, usuario_id, horario_opcional FROM habits";
         try (Connection conn = ConnectionFactory.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql);
              ResultSet rs = pstmt.executeQuery()) {
             while (rs.next()) {
-                int id = rs.getInt("id");
-                String name = rs.getString("name");
-                String description = rs.getString("description");
-                LocalDate creationDate = rs.getDate("creationDate").toLocalDate();
-                int usuarioId = rs.getInt("usuario_id"); // AJUSTE: Obter o usuario_id
-                // AJUSTE CONSTRUTOR: Usar o construtor que inclui usuario_id
-                habits.add(new Habit(id, name, description, creationDate, usuarioId));
+                habits.add(mapResultSetToHabit(rs, conn));
             }
         } catch (SQLException e) {
             System.err.println("Erro de SQL ao buscar todos os hábitos: " + e.getMessage());
@@ -76,144 +138,179 @@ public class HabitDAO {
     }
 
     public Habit getHabitById(int habitIdParam) {
-        // AJUSTE SQL: Selecionar a coluna usuario_id
-        String sql = "SELECT id, name, description, creationDate, usuario_id FROM habits WHERE id = ?";
-        Habit habit = null;
-        if (habitIdParam <= 0) {
-            System.err.println("ID de hábito inválido fornecido para getHabitById: " + habitIdParam);
-            return null;
-        }
+        String sql = "SELECT id, name, description, creationDate, usuario_id, horario_opcional FROM habits WHERE id = ?";
+        if (habitIdParam <= 0) return null;
         try (Connection conn = ConnectionFactory.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, habitIdParam);
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
-                    String name = rs.getString("name");
-                    String description = rs.getString("description");
-                    LocalDate creationDate = rs.getDate("creationDate").toLocalDate();
-                    int usuarioId = rs.getInt("usuario_id"); // AJUSTE: Obter o usuario_id
-                    // AJUSTE CONSTRUTOR: Usar o construtor que inclui usuario_id (passando habitIdParam para o id)
-                    habit = new Habit(habitIdParam, name, description, creationDate, usuarioId);
+                    return mapResultSetToHabit(rs, conn);
                 }
             }
         } catch (SQLException e) {
             System.err.println("Erro de SQL ao buscar hábito por ID (" + habitIdParam + "): " + e.getMessage());
             e.printStackTrace();
         }
-        return habit;
+        return null;
     }
 
     public List<Habit> getHabitsByUserId(int userId) {
         List<Habit> userHabits = new ArrayList<>();
-        String sql = "SELECT id, name, description, creationDate, usuario_id FROM habits WHERE usuario_id = ?";
-
+        String sql = "SELECT id, name, description, creationDate, usuario_id, horario_opcional FROM habits WHERE usuario_id = ? ORDER BY creationDate DESC";
         try (Connection conn = ConnectionFactory.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
             pstmt.setInt(1, userId);
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
-                    int id = rs.getInt("id");
-                    String name = rs.getString("name");
-                    String description = rs.getString("description");
-                    LocalDate creationDate = rs.getDate("creationDate").toLocalDate();
-                    int habitUsuarioId = rs.getInt("usuario_id"); // Confirmando o usuario_id do hábito
-
-                    // Usando o construtor que inclui usuario_id
-                    userHabits.add(new Habit(id, name, description, creationDate, habitUsuarioId));
+                    userHabits.add(mapResultSetToHabit(rs, conn));
                 }
             }
         } catch (SQLException e) {
             System.err.println("Erro de SQL ao buscar hábitos para o usuário ID (" + userId + "): " + e.getMessage());
             e.printStackTrace();
-            // Em caso de erro, retorna uma lista vazia para não quebrar a aplicação,
-            // mas o erro é logado. A camada de serviço pode tratar isso de forma mais robusta.
         }
         return userHabits;
     }
 
     public boolean updateHabit(Habit habit) {
-        // AJUSTE SQL: Pode incluir usuario_id se for permitido alterá-lo,
-        // caso contrário, certifique-se de que o WHERE id = ? é suficiente e o objeto habit
-        // tem o usuarioId correto internamente se for usado em alguma lógica de validação posterior.
-        // Por ora, vamos assumir que usuario_id não é alterado no UPDATE.
-        String sql = "UPDATE habits SET name = ?, description = ?, creationDate = ? WHERE id = ?";
-        // Se você quiser permitir a alteração do usuario_id (geralmente não é uma boa prática para FKs):
-        // String sql = "UPDATE habits SET name = ?, description = ?, creationDate = ?, usuario_id = ? WHERE id = ?";
-        if (habit == null || habit.getId() <= 0) {
-            System.err.println("Erro ao atualizar hábito: Objeto hábito nulo ou ID inválido.");
-            return false;
-        }
-        try (Connection conn = ConnectionFactory.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, habit.getName());
-            pstmt.setString(2, habit.getDescription());
-            pstmt.setDate(3, Date.valueOf(habit.getCreationDate()));
-            // Se for atualizar usuario_id: pstmt.setInt(4, habit.getUsuarioId());
-            // E o ID no WHERE passaria a ser o próximo parâmetro: pstmt.setInt(5, habit.getId());
-            pstmt.setInt(4, habit.getId()); // Se não atualiza usuario_id, este é o 4º parâmetro
-            
-            int affectedRows = pstmt.executeUpdate();
-            return affectedRows > 0;
+        String sqlHabit = "UPDATE habits SET name = ?, description = ?, creationDate = ?, horario_opcional = ? WHERE id = ? AND usuario_id = ?";
+        String sqlDeleteDias = "DELETE FROM habito_dias_semana WHERE habito_id = ?";
+        String sqlInsertDias = "INSERT INTO habito_dias_semana (habito_id, dia_semana) VALUES (?, ?)";
+        
+        Connection conn = null;
+        PreparedStatement pstmtHabit = null;
+        PreparedStatement pstmtDeleteDias = null;
+        PreparedStatement pstmtInsertDias = null;
+
+        if (habit == null || habit.getId() <= 0) return false;
+
+        try {
+            conn = ConnectionFactory.getConnection();
+            conn.setAutoCommit(false);
+
+            pstmtHabit = conn.prepareStatement(sqlHabit);
+            pstmtHabit.setString(1, habit.getName());
+            pstmtHabit.setString(2, habit.getDescription());
+            pstmtHabit.setDate(3, Date.valueOf(habit.getCreationDate()));
+            if (habit.getHorarioOpcional() != null) {
+                pstmtHabit.setTime(4, Time.valueOf(habit.getHorarioOpcional()));
+            } else {
+                pstmtHabit.setNull(4, Types.TIME);
+            }
+            pstmtHabit.setInt(5, habit.getId());
+            pstmtHabit.setInt(6, habit.getUsuarioId());
+            int affectedRows = pstmtHabit.executeUpdate();
+
+            if (affectedRows > 0) {
+                pstmtDeleteDias = conn.prepareStatement(sqlDeleteDias);
+                pstmtDeleteDias.setInt(1, habit.getId());
+                pstmtDeleteDias.executeUpdate(); // Remove todos os dias antigos
+
+                // Inserir os novos dias selecionados
+                if (habit.getDiasDaSemana() != null && !habit.getDiasDaSemana().isEmpty()) {
+                    pstmtInsertDias = conn.prepareStatement(sqlInsertDias);
+                    for (DayOfWeek dia : habit.getDiasDaSemana()) {
+                        pstmtInsertDias.setInt(1, habit.getId());
+                        pstmtInsertDias.setString(2, dia.name());
+                        pstmtInsertDias.addBatch();
+                    }
+                    pstmtInsertDias.executeBatch();
+                }
+                conn.commit();
+                return true;
+            } else {
+                conn.rollback(); // Hábito principal não foi encontrado/atualizado
+                return false;
+            }
         } catch (SQLException e) {
             System.err.println("Erro de SQL ao atualizar hábito com ID (" + habit.getId() + "): " + e.getMessage());
             e.printStackTrace();
-            return false;
+            if (conn != null) {
+                try { conn.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
+            }
+        } finally {
+            try { if (pstmtHabit != null) pstmtHabit.close(); } catch (SQLException e) { e.printStackTrace(); }
+            try { if (pstmtDeleteDias != null) pstmtDeleteDias.close(); } catch (SQLException e) { e.printStackTrace(); }
+            try { if (pstmtInsertDias != null) pstmtInsertDias.close(); } catch (SQLException e) { e.printStackTrace(); }
+            try { if (conn != null) { conn.setAutoCommit(true); conn.close(); } } catch (SQLException e) { e.printStackTrace(); }
         }
+        return false;
     }
 
     public boolean deleteHabit(int habitId) {
-        String sql = "DELETE FROM habits WHERE id = ?";
-        if (habitId <= 0) {
-            System.err.println("Erro ao excluir hábito: ID inválido.");
-            return false;
-        }
-        try (Connection conn = ConnectionFactory.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setInt(1, habitId);
-            int affectedRows = pstmt.executeUpdate();
-            return affectedRows > 0;
+        // ON DELETE CASCADE na FK da tabela habito_dias_semana deve remover os links.
+        // Se não houver CASCADE, você precisaria deletar de habito_dias_semana primeiro:
+        // String sqlDeleteLinks = "DELETE FROM habito_dias_semana WHERE habito_id = ?";
+        String sqlDeleteHabit = "DELETE FROM habits WHERE id = ?";
+        if (habitId <= 0) return false;
+        
+        Connection conn = null;
+        try {
+            conn = ConnectionFactory.getConnection();
+            // Se não usar ON DELETE CASCADE:
+            // try (PreparedStatement pstmtLinks = conn.prepareStatement(sqlDeleteLinks)) {
+            //     pstmtLinks.setInt(1, habitId);
+            //     pstmtLinks.executeUpdate();
+            // }
+            try (PreparedStatement pstmtHabit = conn.prepareStatement(sqlDeleteHabit)) {
+                pstmtHabit.setInt(1, habitId);
+                return pstmtHabit.executeUpdate() > 0;
+            }
         } catch (SQLException e) {
             System.err.println("Erro de SQL ao excluir hábito com ID (" + habitId + "): " + e.getMessage());
             e.printStackTrace();
-            return false;
+        } finally {
+             try { if (conn != null) conn.close(); } catch (SQLException e) { e.printStackTrace(); }
         }
+        return false;
     }
 
+    // main de teste (pode ser ajustado para testar dias da semana)
     public static void main(String[] args) {
         HabitDAO habitDAO = new HabitDAO();
-        int testeUsuarioId = 1; // Use um ID de usuário existente para teste, ou crie um
+        int testeUsuarioId = 1; // Crie este usuário se não existir
 
-        System.out.println("--- Testando addHabit (DAO MODIFICADO) ---");
-        // AJUSTE CONSTRUTOR: Adicionar um usuarioId de teste
-        Habit novoHabitoParaTeste = new Habit("Leitura Diária DAO Teste", "Ler 20 páginas", LocalDate.now(), testeUsuarioId);
-        Habit habitoCriado = habitDAO.addHabit(novoHabitoParaTeste);
+        System.out.println("--- Testando addHabit com dias da semana ---");
+        Habit novoHabitoComDias = new Habit("Yoga Matinal", "30 min de yoga", LocalDate.now(), testeUsuarioId, LocalTime.of(7, 0));
+        Set<DayOfWeek> diasYoga = new HashSet<>();
+        diasYoga.add(DayOfWeek.MONDAY);
+        diasYoga.add(DayOfWeek.WEDNESDAY);
+        diasYoga.add(DayOfWeek.FRIDAY);
+        novoHabitoComDias.setDiasDaSemana(diasYoga);
+        
+        Habit habitoCriado = habitDAO.addHabit(novoHabitoComDias);
+        if (habitoCriado != null) {
+            System.out.println("Hábito com dias adicionado: " + habitoCriado);
+            System.out.println("Dias recuperados: " + habitoCriado.getDiasDaSemana());
 
-        if (habitoCriado != null && habitoCriado.getId() > 0) {
-            System.out.println("Hábito '" + habitoCriado.getName() + "' adicionado! ID: " + habitoCriado.getId() + ", UsuarioID: " + habitoCriado.getUsuarioId());
-            System.out.println("Objeto retornado: " + habitoCriado);
+            System.out.println("\n--- Testando updateHabit ---");
+            habitoCriado.setName("Yoga Vespertina");
+            Set<DayOfWeek> novosDias = new HashSet<>();
+            novosDias.add(DayOfWeek.TUESDAY);
+            novosDias.add(DayOfWeek.THURSDAY);
+            habitoCriado.setDiasDaSemana(novosDias);
+            habitoCriado.setHorarioOpcional(LocalTime.of(18,0));
 
-            System.out.println("\n--- Testando getHabitById (com ID recém-criado) ---");
-            Habit habitoBuscado = habitDAO.getHabitById(habitoCriado.getId());
-            if (habitoBuscado != null) {
-                System.out.println("Hábito encontrado: " + habitoBuscado);
-            } else {
-                System.out.println("ERRO: Hábito com ID " + habitoCriado.getId() + " NÃO encontrado após adição.");
+            boolean atualizou = habitDAO.updateHabit(habitoCriado);
+            System.out.println("Hábito atualizado? " + atualizou);
+            if (atualizou) {
+                Habit habitoRebuscado = habitDAO.getHabitById(habitoCriado.getId());
+                System.out.println("Hábito re-buscado: " + habitoRebuscado);
+                System.out.println("Dias re-buscados: " + habitoRebuscado.getDiasDaSemana());
             }
         } else {
-            System.out.println("Falha ao adicionar o hábito '" + novoHabitoParaTeste.getName() + "'.");
+            System.out.println("Falha ao adicionar hábito com dias.");
         }
 
-        System.out.println("\n--- Testando getAllHabits ---");
-        List<Habit> todosOsHabitos = habitDAO.getAllHabits();
-        if (todosOsHabitos.isEmpty()) {
-            System.out.println("Nenhum hábito encontrado no banco de dados.");
+        System.out.println("\n--- Listando hábitos do usuário " + testeUsuarioId + " ---");
+        List<Habit> habitsDoUsuario = habitDAO.getHabitsByUserId(testeUsuarioId);
+        if (habitsDoUsuario.isEmpty()) {
+            System.out.println("Nenhum hábito encontrado.");
         } else {
-            System.out.println("Hábitos encontrados (" + todosOsHabitos.size() + "):");
-            for (Habit habit : todosOsHabitos) {
-                System.out.println(habit);
+            for (Habit h : habitsDoUsuario) {
+                System.out.println(h + " | Dias: " + h.getDiasDaSemana());
             }
         }
-        // Adicione mais testes se desejar
     }
 }

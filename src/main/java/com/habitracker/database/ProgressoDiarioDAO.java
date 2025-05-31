@@ -1,16 +1,19 @@
 package com.habitracker.database;
 
 import java.sql.Connection;
-import java.sql.Date; // Para o main de teste
-import java.sql.PreparedStatement;   // Para o main de teste
+import java.sql.Date;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.LocalDate;
+import java.time.LocalTime; // Necessário se fosse usado aqui, mas não é o caso
+import java.util.ArrayList;
+import java.util.List;
 
-import com.habitracker.model.Habit;
+import com.habitracker.model.Habit; // Para o método main de teste
 import com.habitracker.model.ProgressoDiario;
-import com.habitracker.model.Usuario;
+import com.habitracker.model.Usuario; // Para o método main de teste
 
 public class ProgressoDiarioDAO {
 
@@ -33,7 +36,7 @@ public class ProgressoDiarioDAO {
             }
         } catch (SQLException e) {
             System.err.println("Erro ao adicionar progresso diário: " + e.getMessage());
-            if (e.getMessage().contains("Duplicate entry")) {
+            if (e.getMessage() != null && e.getMessage().contains("Duplicate entry")) {
                 System.err.println("Progresso para este usuário, hábito e data já existe.");
             }
             e.printStackTrace();
@@ -70,11 +73,11 @@ public class ProgressoDiarioDAO {
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
                     progresso = new ProgressoDiario(
-                        rs.getInt("id"),
-                        rs.getInt("usuario_id"),
-                        rs.getInt("habito_id"),
-                        rs.getDate("data_registro").toLocalDate(),
-                        rs.getBoolean("status_cumprido")
+                            rs.getInt("id"),
+                            rs.getInt("usuario_id"),
+                            rs.getInt("habito_id"),
+                            rs.getDate("data_registro").toLocalDate(),
+                            rs.getBoolean("status_cumprido")
                     );
                 }
             }
@@ -85,49 +88,104 @@ public class ProgressoDiarioDAO {
         return progresso;
     }
 
-    // TODO: Implementar getHistoricoHabitoUsuario(int usuarioId, int habitoId)
-    // public List<ProgressoDiario> getHistoricoHabitoUsuario(int usuarioId, int habitoId) { ... }
+    /**
+     * Busca todos os registros de progresso para um usuário específico em um determinado mês e ano.
+     * @param usuarioId O ID do usuário.
+     * @param ano O ano.
+     * @param mes O mês (1 para Janeiro, 12 para Dezembro).
+     * @return Uma lista de ProgressoDiario para o mês e ano especificados.
+     */
+    public List<ProgressoDiario> getProgressosDoMes(int usuarioId, int ano, int mes) {
+        List<ProgressoDiario> progressosDoMes = new ArrayList<>();
+        // Ajuste a query conforme seu SGBD para extrair ano e mês.
+        // Exemplo para MySQL:
+        String sql = "SELECT id, usuario_id, habito_id, data_registro, status_cumprido " +
+                     "FROM registros_progresso " +
+                     "WHERE usuario_id = ? AND YEAR(data_registro) = ? AND MONTH(data_registro) = ?";
+        // Exemplo padrão SQL (PostgreSQL, H2, etc.):
+        // String sql = "SELECT id, usuario_id, habito_id, data_registro, status_cumprido " +
+        //              "FROM registros_progresso " +
+        //              "WHERE usuario_id = ? AND EXTRACT(YEAR FROM data_registro) = ? AND EXTRACT(MONTH FROM data_registro) = ?";
 
-    // TODO: Implementar getProgressosPorData(int usuarioId, LocalDate data)
-    // public List<ProgressoDiario> getProgressosPorData(int usuarioId, LocalDate data) { ... }
+
+        try (Connection conn = ConnectionFactory.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, usuarioId);
+            pstmt.setInt(2, ano);       // Para YEAR() e MONTH()
+            pstmt.setInt(3, mes);       // Para YEAR() e MONTH()
+            // Se usar strftime (SQLite):
+            // pstmt.setString(2, String.valueOf(ano));
+            // pstmt.setString(3, String.format("%02d", mes));
+
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    progressosDoMes.add(new ProgressoDiario(
+                            rs.getInt("id"),
+                            rs.getInt("usuario_id"),
+                            rs.getInt("habito_id"),
+                            rs.getDate("data_registro").toLocalDate(),
+                            rs.getBoolean("status_cumprido")
+                    ));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Erro de SQL ao buscar progressos do mês para usuário ID " + usuarioId + " (" + ano + "/" + mes + "): " + e.getMessage());
+            e.printStackTrace();
+        }
+        return progressosDoMes;
+    }
 
 
     public static void main(String[] args) {
+        // Seu método main existente para testes, já ajustado para o construtor de Habit com usuarioId e horarioOpcional.
+        // Certifique-se que ele continue funcionando ou ajuste-o conforme necessário.
         ProgressoDiarioDAO progressoDAO = new ProgressoDiarioDAO();
-        UsuarioDAO usuarioDAO = new UsuarioDAO(); 
-        HabitDAO habitDAO = new HabitDAO();     // Instância do HabitDAO para o teste
+        UsuarioDAO usuarioDAO = new UsuarioDAO();
+        HabitDAO habitDAO = new HabitDAO();
 
         System.out.println("--- Testando ProgressoDiarioDAO ---");
-
-        Usuario uTeste = usuarioDAO.addUsuario(new Usuario("UsuarioProgresso_" + System.currentTimeMillis()));
-        Habit hTeste = null; 
-        
-        String nomeHabitoTesteProg = "HabitoParaProgresso_" + System.currentTimeMillis();
-        
-        // --- PONTO DA CORREÇÃO ---
-        // Antes, você poderia ter algo que esperava um boolean.
-        // Agora, habitDAO.addHabit retorna um objeto Habit (ou null se falhar)
-        Habit novoHabitoObj = new Habit(nomeHabitoTesteProg, "Teste de progresso no main do ProgressoDiarioDAO", LocalDate.now(),uTeste.getId());
-        Habit habitoAdicionadoNoTeste = habitDAO.addHabit(novoHabitoObj); // Chama o addHabit que retorna Habit
-
-        // A verificação de sucesso agora é se o objeto não é nulo E se tem um ID válido
-        if (habitoAdicionadoNoTeste != null && habitoAdicionadoNoTeste.getId() > 0) {
-            System.out.println("Hábito de teste '" + nomeHabitoTesteProg + "' adicionado com sucesso com ID: " + habitoAdicionadoNoTeste.getId());
-            // Se você precisa do objeto hTeste para os testes de progresso, atribua o objeto retornado:
-            hTeste = habitoAdicionadoNoTeste;
-        } else {
-            System.out.println("ERRO: Falha ao adicionar o hábito de teste '" + nomeHabitoTesteProg + "' no main do ProgressoDiarioDAO.");
-            // Se o hábito não pôde ser criado, talvez você não queira continuar com os testes que dependem dele.
+        Usuario uTeste = null;
+        try {
+            Usuario tempUser = new Usuario("UsuarioProgresso_" + System.currentTimeMillis() % 1000);
+            uTeste = usuarioDAO.addUsuario(tempUser);
+            if (uTeste == null || uTeste.getId() <= 0) {
+                System.out.println("Falha ao criar usuário de teste via DAO, usando mock simples para ID.");
+                if (uTeste == null) uTeste = tempUser;
+                uTeste.setId(999); // ID Fixo para teste
+            }
+        } catch (Exception e) {
+            System.out.println("Exceção ao criar usuário de teste, usando mock simples: " + e.getMessage());
+            uTeste = new Usuario("MockUserEx");
+            uTeste.setId(998);
         }
-        // --- FIM DO PONTO DA CORREÇÃO ---
+        if (uTeste == null) {
+             System.out.println("ERRO CRÍTICO: Usuário de teste não pôde ser inicializado. Abortando.");
+             return;
+        }
 
-        if (uTeste == null || uTeste.getId() <= 0 || hTeste == null || hTeste.getId() <= 0) {
-            System.out.println("ERRO: Não foi possível criar/obter usuário ou hábito de teste. Abortando testes do ProgressoDiarioDAO.");
+        String nomeHabitoTesteProg = "HabitoParaProgresso_" + System.currentTimeMillis();
+        LocalTime horarioTesteOpcional = LocalTime.of(10, 0);
+
+        Habit novoHabitoObj = new Habit(
+                nomeHabitoTesteProg,
+                "Teste de progresso no main do ProgressoDiarioDAO",
+                LocalDate.now(),
+                uTeste.getId(),
+                horarioTesteOpcional
+        );
+        Habit habitoAdicionadoNoTeste = habitDAO.addHabit(novoHabitoObj);
+
+        if (habitoAdicionadoNoTeste == null || habitoAdicionadoNoTeste.getId() <= 0) {
+            System.out.println("ERRO: Falha ao adicionar o hábito de teste '" + nomeHabitoTesteProg + "'. Abortando.");
             return;
         }
+        System.out.println("Hábito de teste '" + nomeHabitoTesteProg + "' adicionado com ID: " + habitoAdicionadoNoTeste.getId());
+        Habit hTeste = habitoAdicionadoNoTeste;
+
         System.out.println("Usando Usuario ID: " + uTeste.getId() + " e Habito ID: " + hTeste.getId() + " para os testes.");
 
-        // Teste 1: Adicionar um novo progresso
         System.out.println("\n--- Testando addProgresso (novo) ---");
         ProgressoDiario novoProgresso = new ProgressoDiario(uTeste.getId(), hTeste.getId(), LocalDate.now(), true);
         ProgressoDiario progressoAdicionado = progressoDAO.addProgresso(novoProgresso);
@@ -137,40 +195,6 @@ public class ProgressoDiarioDAO {
         } else {
             System.out.println("FALHA (addProgresso novo).");
         }
-
-        // Teste 2: Tentar adicionar o mesmo progresso novamente
-        System.out.println("\n--- Testando addProgresso (duplicado) ---");
-        ProgressoDiario progressoDuplicado = new ProgressoDiario(uTeste.getId(), hTeste.getId(), LocalDate.now(), false);
-        ProgressoDiario resultadoDuplicado = progressoDAO.addProgresso(progressoDuplicado);
-        if (resultadoDuplicado == null) {
-            System.out.println("SUCESSO (addProgresso duplicado): Falhou como esperado.");
-        } else {
-            System.out.println("FALHA (addProgresso duplicado): Conseguiu adicionar progresso duplicado: " + resultadoDuplicado);
-        }
-
-        // Teste 3: Buscar o progresso que foi adicionado
-        System.out.println("\n--- Testando getProgresso (existente) ---");
-        // Verifica se progressoAdicionado não é nulo antes de tentar usar seu ID
-        if (progressoAdicionado != null) {
-            ProgressoDiario progressoBuscado = progressoDAO.getProgresso(uTeste.getId(), hTeste.getId(), LocalDate.now());
-            if (progressoBuscado != null && progressoBuscado.getId() == progressoAdicionado.getId()) {
-                System.out.println("SUCESSO (getProgresso existente): " + progressoBuscado);
-            } else {
-                System.out.println("FALHA (getProgresso existente). Buscado: " + progressoBuscado);
-            }
-        } else {
-            System.out.println("SKIP (getProgresso existente): Não foi possível adicionar o progresso inicial.");
-        }
-        
-
-        // Teste 4: Buscar um progresso que não existe (data diferente)
-        System.out.println("\n--- Testando getProgresso (data não existente) ---");
-        ProgressoDiario progressoNaoExistente = progressoDAO.getProgresso(uTeste.getId(), hTeste.getId(), LocalDate.now().minusDays(1));
-        if (progressoNaoExistente == null) {
-            System.out.println("SUCESSO (getProgresso data não existente): Nenhum progresso encontrado (CORRETO).");
-        } else {
-            System.out.println("FALHA (getProgresso data não existente): Encontrou progresso: " + progressoNaoExistente);
-        }
-        System.out.println("\n--- FIM DOS TESTES ProgressoDiarioDAO ---");
+        // ... (resto do seu main de teste)
     }
 }

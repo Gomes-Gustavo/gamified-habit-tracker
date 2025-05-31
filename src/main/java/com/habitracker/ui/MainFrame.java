@@ -1,160 +1,192 @@
 package com.habitracker.ui;
 
-import com.habitracker.backend.ConquistaService;
+// Removido: import com.habitracker.backend.ConquistaService;
 import com.habitracker.backend.HabitService;
-import com.habitracker.database.HabitDAO;
-import com.habitracker.database.ProgressoDiarioDAO;
+// DAOs para Objetivos serão necessários
+// import com.habitracker.database.ObjetivoDAO; 
+import com.habitracker.database.HabitDAO;       // Não é ideal usar DAOs diretamente na UI, mas para detalhes pode ser
+import com.habitracker.database.ProgressoDiarioDAO; // Usado para o painel de detalhes de hábitos por dia (se reintroduzido) ou lógica de objetivos
 import com.habitracker.database.UsuarioDAO;
-import com.habitracker.model.Conquista;
+import com.habitracker.database.ObjetivoDAO;
+// Removido: import com.habitracker.model.Conquista;
 import com.habitracker.model.Habit;
 import com.habitracker.model.Usuario;
+import com.habitracker.model.ProgressoDiario;
+import com.habitracker.model.Objetivo; // NOVO MODEL
 import com.habitracker.serviceapi.HabitTrackerServiceAPI;
 import com.habitracker.serviceapi.dto.FeedbackMarcacaoDTO;
 import com.habitracker.serviceapi.exceptions.HabitNotFoundException;
 import com.habitracker.serviceapi.exceptions.PersistenceException;
 import com.habitracker.serviceapi.exceptions.UserNotFoundException;
 import com.habitracker.serviceapi.exceptions.ValidationException;
+import com.habitracker.backend.ObjetivoService;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.border.LineBorder;
+import javax.swing.border.TitledBorder;
 import java.awt.*;
+// import java.awt.event.ActionEvent; // Não usado diretamente se usar lambdas
+// import java.awt.event.ActionListener; // Não usado diretamente se usar lambdas
+import java.beans.PropertyChangeListener;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
-// import java.time.format.DateTimeFormatter; // Removido pois não é usado diretamente aqui
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Calendar; // Usado apenas em atualizarVisualizacaoCalendario para domingos
+import java.util.Collections;
+import java.util.Comparator; // Para ordenar objetivos
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import com.toedter.calendar.JCalendar;
+import com.toedter.calendar.JDayChooser;
 
 public class MainFrame extends JFrame {
 
     private HabitTrackerServiceAPI habitService;
+    private ObjetivoService objetivoService;
+    private ProgressoDiarioDAO progressoDiarioDAO_ref; 
+
+    private LocalDate dataSimuladaHoje = null;
+    private LocalDate dataContextoHabitos; 
 
     private DefaultListModel<Habit> habitListModel;
     private JList<Habit> habitJList;
-    private DefaultListModel<Conquista> conquistaListModel;
-    private JList<Conquista> conquistaJList;
-    private DefaultListModel<Conquista> todasConquistasListModel;
-    private JList<Conquista> todasConquistasJList;
+    private TitledBorder habitPanelTitledBorder; 
+    private JPanel habitPanel; 
 
-    private JButton editButton;
-    private JButton deleteButton;
-    private JButton markDoneButton;
-    private JButton addButton;
-    private JButton refreshButton;
+    private DefaultListModel<Objetivo> objetivosListModel;
+    private JList<Objetivo> objetivosJList;
+    private JPanel painelObjetivos;
+    private JButton btnAddObjetivo, btnEditObjetivo, btnDelObjetivo, btnMarcarObjetivoConcluido;
 
-    private JLabel nomeUsuarioLabel;
-    private JLabel pontosUsuarioLabel;
+    private JCalendar calendarioView;
+    private JPanel calendarioPanel;
+
+    private JButton editButton, deleteButton, markDoneButton, addButton, refreshButton;
+    private JLabel nomeUsuarioLabel, pontosUsuarioLabel;
     private JProgressBar pontosProgressBar;
-
     private int usuarioIdAtual = -1;
+    private static int proximoIdSimuladoObjetivo = -1; 
 
-    // --- CONTROLE DE TEMA ---
     private final boolean USAR_TEMA_ESCURO = true;
 
-    // --- CORES E FONTES PARA O TEMA (MODO CLARO) ---
-    private final Color COR_FUNDO_GERAL_CLARO = new Color(235, 235, 235);
-    private final Color COR_PAINEL_INFO_CLARO = new Color(220, 220, 220);
-    private final Color COR_LARANJA_TEMA_PRIMARIA_CLARO = new Color(255, 140, 0);
-    private final Color COR_LARANJA_TEMA_SECUNDARIA_CLARO = new Color(255, 167, 38);
-    private final Color COR_TEXTO_PADRAO_CLARO = new Color(40, 40, 40);
-    private final Color COR_TEXTO_TITULO_PAINEL_CLARO = COR_LARANJA_TEMA_PRIMARIA_CLARO.darker();
+    // --- CORES e FONTES ---
+    private final Color COR_FUNDO_GERAL_CLARO = new Color(240, 240, 240);
+    private final Color COR_PAINEL_CLARO = new Color(225, 225, 225);
+    private final Color COR_TEXTO_PADRAO_CLARO = new Color(30, 30, 30);
+    private final Color COR_TEXTO_TITULO_CLARO = new Color(0, 80, 150);
+    private final Color COR_ACENTO_PRIMARIO_CLARO = new Color(255, 120, 30);
+    private final Color COR_ACENTO_SECUNDARIO_CLARO = new Color(255, 150, 70);
+    private final Color COR_SELECAO_LISTA_FUNDO_VERDE_CLARO = new Color(190, 240, 190);
+    private final Color COR_SELECAO_LISTA_TEXTO_CLARO = Color.BLACK;
 
-    // --- CORES E FONTES PARA O TEMA ESCURO ---
-    private final Color COR_FUNDO_GERAL_ESCURO = new Color(43, 43, 43);
-    private final Color COR_PAINEL_ESCURO = new Color(55, 55, 55);
-    private final Color COR_TEXTO_ESCURO = new Color(210, 210, 210);
-    private final Color COR_TEXTO_TITULO_PAINEL_ESCURO = new Color(255, 152, 0);
-    private final Color COR_ACENTO_PRIMARIO_ESCURO = new Color(255, 152, 0); // Laranja para abas selecionadas
-    private final Color COR_ACENTO_SECUNDARIO_ESCURO = new Color(200, 100, 0);
-    private final Color COR_BORDA_ESCURO = new Color(75, 75, 75);
-    private final Color COR_SELECAO_LISTA_FUNDO_ESCURO = new Color(0, 85, 140);
+    private final Color COR_FUNDO_GERAL_ESCURO = new Color(30, 30, 30);
+    private final Color COR_PAINEL_ESCURO = new Color(45, 45, 45);
+    private final Color COR_TEXTO_ESCURO = new Color(220, 220, 220);
+    private final Color COR_TEXTO_TITULO_ESCURO = new Color(255, 165, 0); 
+    private final Color COR_ACENTO_PRIMARIO_ESCURO = new Color(255, 165, 0);
+    private final Color COR_ACENTO_SECUNDARIO_ESCURO = new Color(220, 120, 0);
+    private final Color COR_BORDA_ESCURO = new Color(60, 60, 60);
+    private final Color COR_SELECAO_LISTA_FUNDO_VERDE_ESCURO = new Color(25, 80, 35);
     private final Color COR_SELECAO_LISTA_TEXTO_ESCURO = Color.WHITE;
     private final Color COR_PROGRESSBAR_PROGRESSO_ESCURO = COR_ACENTO_PRIMARIO_ESCURO;
-    private final Color COR_PROGRESSBAR_FUNDO_ESCURO = new Color(70, 70, 70);
+    private final Color COR_PROGRESSBAR_FUNDO_ESCURO = new Color(60, 60, 60);
     private final Color COR_TEXTO_BOTAO_ESCURO = Color.WHITE;
 
-    // Seletores de cor baseados no tema
-    private Color getCorFundoGeral() {
-        return USAR_TEMA_ESCURO ? COR_FUNDO_GERAL_ESCURO : COR_FUNDO_GERAL_CLARO;
-    }
+    private final Font FONTE_TITULO_JANELA = new Font("Arial", Font.BOLD, 24);
+    private final Font FONTE_TITULO_PAINEL_NOVA = new Font("Arial Black", Font.BOLD, 20);
+    private final Font FONTE_LABEL_INFO_USUARIO = new Font("Segoe UI Semibold", Font.BOLD, 17);
+    private final Font FONTE_TEXTO_GERAL = new Font("Segoe UI", Font.PLAIN, 16);
+    private final Font FONTE_BOTAO = new Font(Font.SANS_SERIF, Font.BOLD, 15);
+    private final Font FONTE_LISTA = new Font("Segoe UI", Font.PLAIN, 16);
+    // private final Font FONTE_OBJETIVOS_LISTA = new Font("Segoe UI", Font.PLAIN, 14); // Fonte definida no renderer
 
-    private Color getCorPainelInfo() {
-        return USAR_TEMA_ESCURO ? COR_PAINEL_ESCURO : COR_PAINEL_INFO_CLARO;
-    }
+    private List<ProgressoDiario> progressoDoMesAtual;
+    private List<Habit> habitosDoUsuarioAtual; 
+    private Map<LocalDate, String> statusDiasCalendario;
 
-    private Color getCorTextoPadrao() {
-        return USAR_TEMA_ESCURO ? COR_TEXTO_ESCURO : COR_TEXTO_PADRAO_CLARO;
-    }
-
-    private Color getCorTextoTituloPainel() {
-        return USAR_TEMA_ESCURO ? COR_TEXTO_TITULO_PAINEL_ESCURO : COR_TEXTO_TITULO_PAINEL_CLARO;
-    }
-
-    private Color getCorAcentoPrimaria() {
-        return USAR_TEMA_ESCURO ? COR_ACENTO_PRIMARIO_ESCURO : COR_LARANJA_TEMA_PRIMARIA_CLARO;
-    }
-
-    private Color getCorAcentoSecundaria() {
-        return USAR_TEMA_ESCURO ? COR_ACENTO_SECUNDARIO_ESCURO : COR_LARANJA_TEMA_SECUNDARIA_CLARO;
-    }
-
-    private Color getCorTextoBotao() {
-        return USAR_TEMA_ESCURO ? COR_TEXTO_BOTAO_ESCURO : Color.WHITE;
-    }
-
-    // Fontes
-    private final Font FONTE_TITULO_JANELA = new Font("Segoe UI", Font.BOLD, 20);
-    private final Font FONTE_TITULO_PAINEL = new Font("Segoe UI Semibold", Font.BOLD, 16);
-    private final Font FONTE_LABEL_INFO_USUARIO = new Font("Segoe UI", Font.BOLD, 14);
-    private final Font FONTE_TEXTO_GERAL = new Font("Segoe UI", Font.PLAIN, 13);
-    private final Font FONTE_BOTAO = new Font("Segoe UI", Font.BOLD, 12);
-    private final Font FONTE_LISTA = new Font("Segoe UI", Font.PLAIN, 13);
+    private Color getCorFundoGeral() { return USAR_TEMA_ESCURO ? COR_FUNDO_GERAL_ESCURO : COR_FUNDO_GERAL_CLARO; }
+    private Color getCorPainelInterno() { return USAR_TEMA_ESCURO ? COR_PAINEL_ESCURO : COR_PAINEL_CLARO; }
+    private Color getCorTextoPadrao() { return USAR_TEMA_ESCURO ? COR_TEXTO_ESCURO : COR_TEXTO_PADRAO_CLARO; }
+    private Color getCorTextoTituloPainel() { return USAR_TEMA_ESCURO ? COR_TEXTO_TITULO_ESCURO : COR_TEXTO_TITULO_CLARO; }
+    private Color getCorAcentoPrimaria() { return USAR_TEMA_ESCURO ? COR_ACENTO_PRIMARIO_ESCURO : COR_ACENTO_PRIMARIO_CLARO; }
+    private Color getCorAcentoSecundaria() { return USAR_TEMA_ESCURO ? COR_ACENTO_SECUNDARIO_ESCURO : COR_ACENTO_SECUNDARIO_CLARO; }
+    private Color getCorTextoBotao() { return USAR_TEMA_ESCURO ? COR_TEXTO_BOTAO_ESCURO : Color.WHITE; }
 
 
     public MainFrame() {
+        this.progressoDoMesAtual = new ArrayList<>();
+        this.habitosDoUsuarioAtual = new ArrayList<>();
+        this.statusDiasCalendario = new HashMap<>();
+        this.dataContextoHabitos = getDataAtualParaLogica(); 
+
         if (USAR_TEMA_ESCURO) {
             aplicarConfiguracoesUIManagerTemaEscuro();
+        } else {
+            aplicarConfiguracoesUIManagerTemaClaro();
         }
 
         HabitDAO realHabitDAO = new HabitDAO();
         UsuarioDAO realUsuarioDAO = new UsuarioDAO();
-        ProgressoDiarioDAO realProgressoDiarioDAO = new ProgressoDiarioDAO();
-        ConquistaService realConquistaService = new ConquistaService();
-        this.habitService = new HabitService(
-                realHabitDAO, realUsuarioDAO, realProgressoDiarioDAO, realConquistaService
-        );
-
-        solicitarUsuarioId(); // MÉTODO MODIFICADO ABAIXO
+        this.progressoDiarioDAO_ref = new ProgressoDiarioDAO();
+        ObjetivoDAO realObjetivoDAO = new ObjetivoDAO();
+        this.habitService = new HabitService(realHabitDAO, realUsuarioDAO, this.progressoDiarioDAO_ref);
+        this.objetivoService = new ObjetivoService(realObjetivoDAO, realHabitDAO);
+        solicitarUsuarioId();
 
         setTitle("Habit Tracker Gamificado");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(1024, 768);
-        setMinimumSize(new Dimension(800, 600));
+        setSize(1350, 820); 
+        setMinimumSize(new Dimension(1200, 750)); 
         setLocationRelativeTo(null);
         getContentPane().setBackground(getCorFundoGeral());
-        setLayout(new BorderLayout(10, 10));
-        ((JPanel) getContentPane()).setBorder(new EmptyBorder(15, 15, 15, 15));
+        setLayout(new BorderLayout(15, 15));
+        ((JPanel) getContentPane()).setBorder(new EmptyBorder(20, 20, 20, 20));
 
-        initComponents();
+        initComponents(); 
 
         if (this.usuarioIdAtual != -1) {
-            loadHabits();
+            loadHabits(); 
             atualizarDisplayUsuario();
-            loadTodasConquistasGuia();
+            carregarDadosCalendario();
+            loadObjetivos(); 
         } else {
-            // Estado da UI se nenhum usuário for selecionado (após falha em identificar/criar)
             if (nomeUsuarioLabel != null) nomeUsuarioLabel.setText("Usuário: [Nenhum Usuário Logado]");
             if (pontosUsuarioLabel != null) pontosUsuarioLabel.setText("Pontos: -");
-            if (pontosProgressBar != null) pontosProgressBar.setValue(0);
+            if (pontosProgressBar != null) {
+                pontosProgressBar.setValue(0);
+                pontosProgressBar.setString("0 / 100 pts");
+                pontosProgressBar.setMaximum(100);
+            }
             if (habitListModel != null) habitListModel.clear();
-            if (conquistaListModel != null) conquistaListModel.clear();
-            if (todasConquistasListModel != null) todasConquistasListModel.clear();
-            // Desabilitar botões de ação se nenhum usuário estiver logado
-            if (addButton != null) addButton.setEnabled(false);
-            if (editButton != null) editButton.setEnabled(false);
-            if (deleteButton != null) deleteButton.setEnabled(false);
-            if (markDoneButton != null) markDoneButton.setEnabled(false);
-            if (refreshButton != null) refreshButton.setEnabled(false);
-
+            if (objetivosListModel != null) objetivosListModel.clear();
+            limparCoresCalendario();
+            if (habitPanelTitledBorder != null && habitPanel != null) {
+                habitPanelTitledBorder.setTitle("Hábitos");
+                habitPanel.repaint();
+            }
         }
-        // atualizarEstadoBotoesAcao() é chamado no final de initComponents e outras operações
+        atualizarEstadoBotoesAcao(); 
+    }
+
+    private void aplicarConfiguracoesUIManagerTemaClaro() {
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception e) {
+            System.err.println("Falha ao definir LookAndFeel padrão do sistema: " + e.getMessage());
+        }
+        UIManager.put("List.background", Color.WHITE);
+        UIManager.put("List.foreground", COR_TEXTO_PADRAO_CLARO);
+        UIManager.put("List.selectionBackground", COR_SELECAO_LISTA_FUNDO_VERDE_CLARO); 
+        UIManager.put("List.selectionForeground", COR_SELECAO_LISTA_TEXTO_CLARO); 
+        UIManager.put("TitledBorder.font", FONTE_TITULO_PAINEL_NOVA);
+        UIManager.put("TitledBorder.titleColor", getCorTextoTituloPainel());
     }
 
     private void aplicarConfiguracoesUIManagerTemaEscuro() {
@@ -165,355 +197,501 @@ public class MainFrame extends JFrame {
                     break;
                 }
             }
-        } catch (Exception e) {
-            System.err.println("Nimbus LaF não encontrado, usando padrão. A aparência pode variar.");
-        }
+        } catch (Exception e) { System.err.println("Nimbus LaF não encontrado."); }
 
         UIManager.put("control", COR_PAINEL_ESCURO);
+        UIManager.put("info", COR_PAINEL_ESCURO); 
+        UIManager.put("nimbusBase", COR_ACENTO_SECUNDARIO_ESCURO.darker());
+        UIManager.put("nimbusFocus", COR_ACENTO_PRIMARIO_ESCURO);
+        UIManager.put("nimbusLightBackground", COR_PAINEL_ESCURO);
+        UIManager.put("nimbusSelectionBackground", COR_ACENTO_PRIMARIO_ESCURO); 
+        UIManager.put("text", COR_TEXTO_ESCURO); 
         UIManager.put("Panel.background", getCorFundoGeral());
-        UIManager.put("Window.background", getCorFundoGeral());
-        UIManager.put("Frame.background", getCorFundoGeral());
-        UIManager.put("Dialog.background", getCorFundoGeral());
-
         UIManager.put("OptionPane.background", COR_PAINEL_ESCURO);
-        UIManager.put("OptionPane.messageForeground", getCorTextoPadrao());
-        UIManager.put("OptionPane.buttonAreaBorder", BorderFactory.createEmptyBorder());
-
-        UIManager.put("Button.background", getCorAcentoPrimaria());
-        UIManager.put("Button.foreground", getCorTextoBotao());
-        UIManager.put("Button.select", getCorAcentoSecundaria());
-        UIManager.put("Button.focus", new Color(0,0,0,0));
-        UIManager.put("Button.border", new EmptyBorder(5, 15, 5, 15));
+        UIManager.put("OptionPane.messageForeground", COR_TEXTO_ESCURO);
+        UIManager.put("Button.background", COR_ACENTO_PRIMARIO_ESCURO); 
+        UIManager.put("Button.foreground", COR_TEXTO_BOTAO_ESCURO);
         UIManager.put("Button.font", FONTE_BOTAO);
 
         UIManager.put("List.background", COR_PAINEL_ESCURO);
         UIManager.put("List.foreground", getCorTextoPadrao());
-        UIManager.put("List.selectionBackground", COR_SELECAO_LISTA_FUNDO_ESCURO);
-        UIManager.put("List.selectionForeground", COR_SELECAO_LISTA_TEXTO_ESCURO);
+        UIManager.put("List.selectionBackground", COR_SELECAO_LISTA_FUNDO_VERDE_ESCURO); 
+        UIManager.put("List.selectionForeground", COR_SELECAO_LISTA_TEXTO_ESCURO);    
         UIManager.put("List.focusCellHighlightBorder", new EmptyBorder(1,1,1,1));
 
-        UIManager.put("ProgressBar.foreground", COR_PROGRESSBAR_PROGRESSO_ESCURO);
-        UIManager.put("ProgressBar.background", COR_PROGRESSBAR_FUNDO_ESCURO);
-        UIManager.put("ProgressBar.selectionForeground", getCorTextoPadrao());
-        UIManager.put("ProgressBar.selectionBackground", getCorTextoBotao());
-        UIManager.put("ProgressBar.font", new Font("Segoe UI", Font.BOLD, 12));
-        UIManager.put("ProgressBar.border", BorderFactory.createLineBorder(COR_BORDA_ESCURO, 1));
-
-        UIManager.put("TabbedPane.selected", getCorAcentoPrimaria());
-        UIManager.put("TabbedPane.selectedForeground", Color.BLACK);
-        UIManager.put("TabbedPane.foreground", getCorTextoPadrao());
-        UIManager.put("TabbedPane.background", COR_PAINEL_ESCURO);
-        UIManager.put("TabbedPane.tabAreaBackground", COR_FUNDO_GERAL_ESCURO);
-        UIManager.put("TabbedPane.contentAreaColor", COR_PAINEL_ESCURO);
-        UIManager.put("TabbedPane.borderHightlightColor", COR_BORDA_ESCURO);
-        UIManager.put("TabbedPane.darkShadow", COR_FUNDO_GERAL_ESCURO);
-        UIManager.put("TabbedPane.light", COR_BORDA_ESCURO);
-        UIManager.put("TabbedPane.shadow", COR_FUNDO_GERAL_ESCURO);
-        UIManager.put("TabbedPane.focus", getCorAcentoPrimaria().darker());
-        UIManager.put("TabbedPane.tabInsets", new Insets(4, 10, 4, 10));
-        UIManager.put("TabbedPane.font", FONTE_BOTAO.deriveFont(14f));
-
-        UIManager.put("ScrollPane.background", getCorFundoGeral());
-        UIManager.put("ScrollPane.border", BorderFactory.createEmptyBorder());
-        UIManager.put("Viewport.background", getCorFundoGeral());
-
-        UIManager.put("ScrollBar.background", COR_PAINEL_ESCURO);
-        UIManager.put("ScrollBar.foreground", getCorAcentoPrimaria());
-        UIManager.put("ScrollBar.track", COR_BORDA_ESCURO);
-        UIManager.put("ScrollBar.width", 10);
-        UIManager.put("ScrollBar.thumb", new Color(100, 100, 100));
-        UIManager.put("ScrollBar.thumbDarkShadow", new Color(70, 70, 70));
-        UIManager.put("ScrollBar.thumbHighlight", new Color(130, 130, 130));
-        UIManager.put("ScrollBar.thumbShadow", new Color(60,60,60));
-
-        UIManager.put("TextField.background", COR_BORDA_ESCURO);
-        UIManager.put("TextField.foreground", getCorTextoPadrao());
-        UIManager.put("TextField.caretForeground", getCorAcentoPrimaria());
-        UIManager.put("TextField.selectionBackground", COR_SELECAO_LISTA_FUNDO_ESCURO);
-        UIManager.put("TextField.selectionForeground", COR_SELECAO_LISTA_TEXTO_ESCURO);
-        UIManager.put("TextField.border", BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(COR_BORDA_ESCURO.brighter()),
-            new EmptyBorder(5,5,5,5)
-        ));
-        UIManager.put("PasswordField.background", COR_BORDA_ESCURO);
-        UIManager.put("PasswordField.foreground", getCorTextoPadrao());
-        UIManager.put("PasswordField.caretForeground", getCorAcentoPrimaria());
-        UIManager.put("PasswordField.selectionBackground", COR_SELECAO_LISTA_FUNDO_ESCURO);
-        UIManager.put("PasswordField.selectionForeground", COR_SELECAO_LISTA_TEXTO_ESCURO);
-        UIManager.put("PasswordField.border", UIManager.getBorder("TextField.border"));
-
-        UIManager.put("Label.foreground", getCorTextoPadrao());
-        UIManager.put("Label.font", FONTE_TEXTO_GERAL);
-
+        UIManager.put("TitledBorder.font", FONTE_TITULO_PAINEL_NOVA);
         UIManager.put("TitledBorder.titleColor", getCorTextoTituloPainel());
         UIManager.put("TitledBorder.border", BorderFactory.createLineBorder(COR_BORDA_ESCURO, 1));
-        UIManager.put("TitledBorder.font", FONTE_TITULO_PAINEL);
+
+        UIManager.put("Label.font", FONTE_TEXTO_GERAL);
+        UIManager.put("Label.foreground", COR_TEXTO_ESCURO);
+        UIManager.put("ProgressBar.foreground", COR_PROGRESSBAR_PROGRESSO_ESCURO);
+        UIManager.put("ProgressBar.background", COR_PROGRESSBAR_FUNDO_ESCURO);
+        UIManager.put("ProgressBar.selectionForeground", COR_TEXTO_ESCURO); 
+        UIManager.put("ProgressBar.selectionBackground", COR_PROGRESSBAR_PROGRESSO_ESCURO);
+        UIManager.put("ToolTip.background", COR_PAINEL_ESCURO.brighter());
+        UIManager.put("ToolTip.foreground", COR_TEXTO_ESCURO);
+        UIManager.put("ComboBox.background", COR_PAINEL_ESCURO);
+        UIManager.put("ComboBox.foreground", COR_TEXTO_ESCURO);
+        UIManager.put("ComboBox.selectionBackground", COR_ACENTO_PRIMARIO_ESCURO);
+        UIManager.put("ComboBox.selectionForeground", COR_TEXTO_BOTAO_ESCURO);
+        UIManager.put("ScrollPane.background", getCorPainelInterno());
+        UIManager.put("ScrollPane.border", BorderFactory.createLineBorder(COR_BORDA_ESCURO));
+        UIManager.put("Viewport.background", getCorPainelInterno()); 
+
+        UIManager.put("TabbedPane.font", FONTE_BOTAO); 
+        UIManager.put("TabbedPane.foreground", COR_TEXTO_ESCURO);
+        UIManager.put("TabbedPane.selected", COR_ACENTO_PRIMARIO_ESCURO);
+        UIManager.put("TabbedPane.background", COR_PAINEL_ESCURO);
+        UIManager.put("TabbedPane.contentOpaque", false);
+        UIManager.put("TabbedPane.tabsOverlapBorder", true);
+
+        UIManager.put("Calendar.background", getCorPainelInterno());
+        UIManager.put("Calendar.foreground", getCorTextoPadrao());
+        UIManager.put("Calendar.weekOfYearForeground", getCorTextoPadrao().darker()); 
+        UIManager.put("Calendar.sundayForeground", COR_ACENTO_PRIMARIO_ESCURO); 
+        UIManager.put("Calendar.weekdayForeground", COR_ACENTO_PRIMARIO_ESCURO); 
+        UIManager.put("Calendar.todayColor", getCorAcentoSecundaria()); 
+
+        UIManager.put("JMonthChooser.background", getCorPainelInterno());
+        UIManager.put("JMonthChooser.foreground", getCorTextoPadrao());
+        UIManager.put("JYearChooser.background", getCorPainelInterno()); 
+        UIManager.put("JYearChooser.foreground", getCorTextoPadrao()); 
+        UIManager.put("Spinner.background", getCorPainelInterno());
+        UIManager.put("Spinner.foreground", getCorTextoPadrao());
+        UIManager.put("Spinner.arrowButtonBackground", getCorAcentoPrimaria());
+        UIManager.put("Spinner.border", BorderFactory.createLineBorder(COR_BORDA_ESCURO));
     }
 
-    // MÉTODO MODIFICADO PARA INCLUIR CRIAÇÃO DE USUÁRIO
+    private LocalDate getDataAtualParaLogica() {
+        return dataSimuladaHoje != null ? dataSimuladaHoje : LocalDate.now();
+    }
+
+    public void setDataSimuladaParaTeste(LocalDate dataSimulada) {
+        this.dataSimuladaHoje = dataSimulada;
+        // Ao simular uma nova data, a data de contexto deve ser essa nova data simulada.
+        setDataContextoHabitos(this.dataSimuladaHoje); 
+        System.out.println("Data atual para lógica do app simulada para: " + this.dataSimuladaHoje);
+        System.out.println("Contexto de hábitos atualizado para (via simulação): " + this.dataContextoHabitos);
+    }
+    
     private void solicitarUsuarioId() {
         boolean idValido = false;
-        String idStr = null;
-
+        String idStr;
         while (!idValido) {
-            idStr = JOptionPane.showInputDialog(this,
-                    "Bem-vindo! Por favor, insira seu ID de Usuário (ou deixe em branco para criar um novo):",
-                    "Identificação de Usuário",
-                    JOptionPane.PLAIN_MESSAGE);
+            JPanel panel = new JPanel(new BorderLayout(5, 5));
+            JPanel labelPanel = new JPanel(new GridLayout(0, 1, 2, 2));
+            labelPanel.add(new JLabel("Bem-vindo! Por favor, insira seu ID de Usuário"));
+            labelPanel.add(new JLabel("(ou deixe em branco para criar um novo):"));
+            panel.add(labelPanel, BorderLayout.NORTH);
+            JTextField textField = new JTextField(10);
+            panel.add(textField, BorderLayout.CENTER);
 
-            if (idStr == null) { // Usuário cancelou o diálogo inicial
-                this.usuarioIdAtual = -1;
-                int sair = JOptionPane.showConfirmDialog(this,
-                        "Nenhuma identificação fornecida. Deseja sair da aplicação?",
-                        "Sair", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-                if (sair == JOptionPane.YES_OPTION) {
-                    System.exit(0); // Fecha a aplicação
+            if (USAR_TEMA_ESCURO) {
+                panel.setBackground(COR_PAINEL_ESCURO);
+                labelPanel.setBackground(COR_PAINEL_ESCURO);
+                for(Component c : labelPanel.getComponents()){
+                    if(c instanceof JLabel) c.setForeground(COR_TEXTO_ESCURO);
                 }
-                // Se não sair, o loop continua, permitindo nova tentativa ou fechar a janela
-                continue;
+                textField.setBackground(COR_PAINEL_ESCURO.brighter());
+                textField.setForeground(COR_TEXTO_ESCURO);
+                textField.setCaretColor(COR_TEXTO_ESCURO);
+                textField.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(COR_BORDA_ESCURO),
+                    new EmptyBorder(3,5,3,5)
+                ));
+            }
+            
+            int option = JOptionPane.showConfirmDialog(this, panel, "Identificação de Usuário", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+
+            if (option == JOptionPane.OK_OPTION) {
+                 idStr = textField.getText();
+            } else { 
+                idStr = null; 
             }
 
-            if (idStr.trim().isEmpty()) { // Usuário deixou em branco para criar novo
+            if (idStr == null) {
+                int choice = JOptionPane.showConfirmDialog(this,
+                        "Nenhum ID de usuário foi fornecido.\nDeseja sair do aplicativo?",
+                        "Login Cancelado",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.WARNING_MESSAGE);
+                if (choice == JOptionPane.YES_OPTION) {
+                    System.exit(0);
+                    return; 
+                }
+                continue;
+            }
+            if (idStr.trim().isEmpty()) {
                 idValido = tentarCriarNovoUsuario();
-            } else { // Usuário inseriu um ID
+            } else {
                 try {
-                    int idTentativa = Integer.parseInt(idStr.trim());
-                    if (idTentativa <= 0) {
-                        JOptionPane.showMessageDialog(this, "ID deve ser um número inteiro positivo.", "Erro de Formato", JOptionPane.ERROR_MESSAGE);
-                        continue; // Pede o ID novamente
+                    int id = Integer.parseInt(idStr.trim());
+                    if (id <= 0) {
+                        JOptionPane.showMessageDialog(this, "ID de usuário inválido. Deve ser um número positivo.", "Erro de ID", JOptionPane.ERROR_MESSAGE);
+                        continue;
                     }
-                    Usuario usuarioValidado = habitService.getUsuarioById(idTentativa);
-                    this.usuarioIdAtual = usuarioValidado.getId();
+                    Usuario usuarioExistente = habitService.getUsuarioById(id);
+                    this.usuarioIdAtual = usuarioExistente.getId();
+                    JOptionPane.showMessageDialog(this, "Usuário '" + usuarioExistente.getNome() + "' (ID: " + this.usuarioIdAtual + ") carregado com sucesso!", "Usuário Carregado", JOptionPane.INFORMATION_MESSAGE);
                     idValido = true;
-                    JOptionPane.showMessageDialog(this,
-                            "Usuário " + usuarioValidado.getNome() + " (ID: " + this.usuarioIdAtual + ") carregado com sucesso!",
-                            "Usuário Identificado", JOptionPane.INFORMATION_MESSAGE);
-                } catch (NumberFormatException e) {
-                    JOptionPane.showMessageDialog(this, "ID inválido: '" + idStr + "'. Por favor, insira um número inteiro positivo.", "Erro de Formato", JOptionPane.ERROR_MESSAGE);
+                } catch (NumberFormatException nfe) {
+                    JOptionPane.showMessageDialog(this, "ID de usuário inválido: '" + idStr.trim() + "'. Por favor, insira um número.", "Erro de Formato de ID", JOptionPane.ERROR_MESSAGE);
                 } catch (UserNotFoundException e) {
-                    int choice = JOptionPane.showConfirmDialog(this,
-                            "Usuário com ID '" + idStr.trim() + "' não encontrado.\nDeseja criar um novo usuário?",
-                            "Usuário Não Encontrado",
-                            JOptionPane.YES_NO_OPTION,
-                            JOptionPane.QUESTION_MESSAGE);
+                    int choice = JOptionPane.showConfirmDialog(this, "Usuário com ID '" + idStr.trim() + "' não encontrado.\nDeseja criar um novo usuário?", "Usuário Não Encontrado", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
                     if (choice == JOptionPane.YES_OPTION) {
                         idValido = tentarCriarNovoUsuario();
                     }
-                    // Se 'Não', o loop continua e pedirá o ID novamente.
-                } catch (PersistenceException e) {
-                    JOptionPane.showMessageDialog(this, "Erro de persistência ao buscar usuário: " + e.getMessage() + "\nVerifique a conexão com o banco de dados.", "Erro de Backend", JOptionPane.ERROR_MESSAGE);
-                    // Aqui você pode decidir se quer que o loop continue ou oferecer para sair
-                } catch (Exception e) { // Outras exceções inesperadas
-                    JOptionPane.showMessageDialog(this, "Ocorreu um erro inesperado ao validar usuário: " + e.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
-                    e.printStackTrace();
+                } catch (PersistenceException ex) {
+                    JOptionPane.showMessageDialog(this, "Erro de persistência ao buscar usuário: " + ex.getMessage() + "\nVerifique a conexão com o banco de dados e tente novamente.", "Erro de Backend", JOptionPane.ERROR_MESSAGE);
+                    ex.printStackTrace();
+                } catch (Exception exGeral) {
+                    JOptionPane.showMessageDialog(this, "Ocorreu um erro inesperado ao tentar carregar o usuário: " + exGeral.getMessage(), "Erro Inesperado", JOptionPane.ERROR_MESSAGE);
+                    exGeral.printStackTrace();
                 }
             }
-        } // fim do while (!idValido)
-
-        if (!idValido) { // Se, por algum motivo, sair do loop sem um usuário válido (ex: cancelou tudo)
-            this.usuarioIdAtual = -1;
-            // A mensagem de funcionalidades limitadas já é tratada no construtor
         }
+        if (!idValido) {
+            this.usuarioIdAtual = -1;
+        }
+        // Após o login, a data de contexto inicial é a data atual (simulada ou real)
+        setDataContextoHabitos(getDataAtualParaLogica()); 
     }
 
-    // NOVO MÉTODO AUXILIAR PARA CRIAR USUÁRIO
     private boolean tentarCriarNovoUsuario() {
         CreateUserDialog createUserDialog = new CreateUserDialog(this, true, USAR_TEMA_ESCURO);
         createUserDialog.setVisible(true);
         String nomeNovoUsuario = createUserDialog.getNomeUsuarioCriado();
-
-        if (nomeNovoUsuario != null) { // Usuário clicou em "Criar" e forneceu um nome
+        if (nomeNovoUsuario != null) {
             try {
                 Usuario novoUsuarioCriado = habitService.addUsuario(nomeNovoUsuario);
                 this.usuarioIdAtual = novoUsuarioCriado.getId();
-                JOptionPane.showMessageDialog(this,
-                        "Usuário '" + novoUsuarioCriado.getNome() + "' (ID: " + this.usuarioIdAtual + ") criado e carregado com sucesso!",
-                        "Usuário Criado", JOptionPane.INFORMATION_MESSAGE);
-                return true; // Usuário criado e logado com sucesso
+                JOptionPane.showMessageDialog(this, "Usuário '" + novoUsuarioCriado.getNome() + "' (ID: " + this.usuarioIdAtual + ") criado e carregado com sucesso!", "Usuário Criado", JOptionPane.INFORMATION_MESSAGE);
+                return true;
             } catch (ValidationException ve) {
                 JOptionPane.showMessageDialog(this, "Erro ao criar usuário: " + ve.getMessage(), "Erro de Validação", JOptionPane.ERROR_MESSAGE);
             } catch (PersistenceException pe) {
                 JOptionPane.showMessageDialog(this, "Erro de persistência ao criar usuário: " + pe.getMessage(), "Erro de Backend", JOptionPane.ERROR_MESSAGE);
-            } catch (Exception ex) { // Outras exceções inesperadas
+            } catch (Exception ex) {
                 JOptionPane.showMessageDialog(this, "Ocorreu um erro inesperado ao criar usuário: " + ex.getMessage(), "Erro Inesperado", JOptionPane.ERROR_MESSAGE);
-                ex.printStackTrace();
             }
         }
-        return false; // Criação falhou ou foi cancelada pelo usuário
+        return false;
     }
-
 
     private void initComponents() {
         JPanel infoPanel = new JPanel();
         infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.X_AXIS));
         infoPanel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createTitledBorder(
-                        null, "Informações do Usuário", 0, 0, FONTE_TITULO_PAINEL, getCorTextoTituloPainel()),
-                new EmptyBorder(10, 10, 10, 10)
+                BorderFactory.createTitledBorder(null, "Informações do Usuário", TitledBorder.DEFAULT_JUSTIFICATION, TitledBorder.DEFAULT_POSITION, FONTE_TITULO_PAINEL_NOVA, getCorTextoTituloPainel()),
+                new EmptyBorder(10, 10, 10, 10) 
         ));
-        infoPanel.setBackground(getCorPainelInfo());
+        infoPanel.setBackground(getCorPainelInterno());
         infoPanel.setOpaque(true);
 
         nomeUsuarioLabel = new JLabel("Usuário: Carregando...");
         nomeUsuarioLabel.setFont(FONTE_LABEL_INFO_USUARIO);
-        nomeUsuarioLabel.setForeground(getCorTextoPadrao());
         pontosUsuarioLabel = new JLabel("Pontos: Carregando...");
         pontosUsuarioLabel.setFont(FONTE_LABEL_INFO_USUARIO);
-        pontosUsuarioLabel.setForeground(getCorTextoPadrao());
-
         pontosProgressBar = new JProgressBar(0, 100);
         pontosProgressBar.setStringPainted(true);
-        pontosProgressBar.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        pontosProgressBar.setPreferredSize(new Dimension(220, 28));
+        pontosProgressBar.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        pontosProgressBar.setPreferredSize(new Dimension(250, 30)); 
+        pontosProgressBar.setMinimumSize(new Dimension(150,30));
+        pontosProgressBar.setMaximumSize(new Dimension(300,30));
+
 
         infoPanel.add(nomeUsuarioLabel);
-        infoPanel.add(Box.createHorizontalStrut(30));
+        infoPanel.add(Box.createHorizontalStrut(20));
         infoPanel.add(pontosUsuarioLabel);
-        infoPanel.add(Box.createHorizontalStrut(15));
+        infoPanel.add(Box.createHorizontalStrut(10));
         infoPanel.add(pontosProgressBar);
-        infoPanel.add(Box.createHorizontalGlue());
+        infoPanel.add(Box.createHorizontalStrut(15)); 
+
+        refreshButton = createStyledButton("Recarregar"); 
+        refreshButton.addActionListener(e -> {
+            if (usuarioIdAtual != -1) {
+                System.out.println("Recarregando dados para usuário ID: " + usuarioIdAtual);
+                // Ao recarregar, geralmente voltamos para a data "hoje" da lógica do app
+                setDataContextoHabitos(getDataAtualParaLogica()); 
+                // Os métodos dentro de setDataContextoHabitos já cuidam de atualizar a UI
+                atualizarDisplayUsuario(); // Recarrega pontos do usuário
+                loadObjetivos(); // Recarrega objetivos
+                JOptionPane.showMessageDialog(this, "Dados recarregados.", "Informação", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(this, "Nenhum usuário logado para recarregar dados.", "Aviso", JOptionPane.WARNING_MESSAGE);
+            }
+        });
+        infoPanel.add(refreshButton);
+        infoPanel.add(Box.createHorizontalStrut(8));
+
+        JButton btnSimularData = createStyledButton("Simular Data"); 
+        btnSimularData.addActionListener(e -> {
+            String dataStr = JOptionPane.showInputDialog(this, "Digite a data simulada (AAAA-MM-DD):", getDataAtualParaLogica().toString());
+            if (dataStr != null) {
+                try {
+                    LocalDate dataSimuladaInput = LocalDate.parse(dataStr);
+                    setDataSimuladaParaTeste(dataSimuladaInput); // Este método agora chama setDataContextoHabitos
+                } catch (java.time.format.DateTimeParseException ex) {
+                    JOptionPane.showMessageDialog(this, "Formato de data inválido! Use AAAA-MM-DD.", "Erro de Formato", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
+        infoPanel.add(btnSimularData);
+        infoPanel.add(Box.createHorizontalGlue()); 
         add(infoPanel, BorderLayout.NORTH);
 
-        JTabbedPane tabbedPane = new JTabbedPane();
 
-        JPanel painelMeuProgresso = new JPanel(new GridLayout(1, 2, 20, 0));
-        painelMeuProgresso.setOpaque(false);
+        JPanel painelPrincipalConteudo = new JPanel(new GridLayout(1, 3, 15, 0)); 
+        painelPrincipalConteudo.setOpaque(false);
+        painelPrincipalConteudo.setBorder(new EmptyBorder(10,0,0,0)); 
 
-        JPanel habitPanel = new JPanel(new BorderLayout(5, 10));
-        JLabel tituloHabitos = new JLabel("Meus Hábitos", SwingConstants.CENTER);
-        tituloHabitos.setFont(FONTE_TITULO_PAINEL);
-        tituloHabitos.setForeground(getCorTextoTituloPainel());
-        tituloHabitos.setBorder(new EmptyBorder(10, 0, 15, 0));
-        habitPanel.add(tituloHabitos, BorderLayout.NORTH);
+        habitPanel = new JPanel(new BorderLayout(5, 10)); 
+        habitPanel.setOpaque(USAR_TEMA_ESCURO ? false : true); 
+        if(USAR_TEMA_ESCURO) habitPanel.setBackground(getCorPainelInterno()); else habitPanel.setBackground(getCorFundoGeral());
+
+        habitPanelTitledBorder = BorderFactory.createTitledBorder(
+            BorderFactory.createLineBorder(USAR_TEMA_ESCURO ? COR_BORDA_ESCURO : Color.GRAY), 
+            "Hábitos para " + dataContextoHabitos.format(DateTimeFormatter.ofPattern("dd/MM/yy")),
+            TitledBorder.LEADING, 
+            TitledBorder.TOP, 
+            FONTE_TITULO_PAINEL_NOVA, 
+            getCorTextoTituloPainel()
+        );
+        habitPanel.setBorder(BorderFactory.createCompoundBorder(
+            habitPanelTitledBorder,
+            new EmptyBorder(8, 8, 8, 8) 
+        ));
+        
         habitListModel = new DefaultListModel<>();
         habitJList = new JList<>(habitListModel);
         habitJList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         habitJList.setCellRenderer(new HabitListCellRenderer(USAR_TEMA_ESCURO));
         habitJList.setFont(FONTE_LISTA);
-        habitJList.addListSelectionListener(e -> atualizarEstadoBotoesAcao());
-        JScrollPane habitScrollPane = new JScrollPane(habitJList);
-        if (USAR_TEMA_ESCURO) {
-            habitScrollPane.setOpaque(false);
-            habitScrollPane.getViewport().setOpaque(false);
-            habitJList.setOpaque(false);
-        }
-        habitPanel.add(habitScrollPane, BorderLayout.CENTER);
-        habitPanel.setOpaque(false);
-        painelMeuProgresso.add(habitPanel);
-
-        JPanel conquistaPanel = new JPanel(new BorderLayout(5, 10));
-        JLabel tituloMinhasConquistas = new JLabel("Minhas Conquistas", SwingConstants.CENTER);
-        tituloMinhasConquistas.setFont(FONTE_TITULO_PAINEL);
-        tituloMinhasConquistas.setForeground(getCorTextoTituloPainel());
-        tituloMinhasConquistas.setBorder(new EmptyBorder(10, 0, 15, 0));
-        conquistaPanel.add(tituloMinhasConquistas, BorderLayout.NORTH);
-        conquistaListModel = new DefaultListModel<>();
-        conquistaJList = new JList<>(conquistaListModel);
-        conquistaJList.setCellRenderer(new ConquistaListCellRenderer(USAR_TEMA_ESCURO));
-        conquistaJList.setFont(FONTE_LISTA);
-        JScrollPane conquistaScrollPane = new JScrollPane(conquistaJList);
-        if (USAR_TEMA_ESCURO) {
-            conquistaScrollPane.setOpaque(false);
-            conquistaScrollPane.getViewport().setOpaque(false);
-            conquistaJList.setOpaque(false);
-        }
-        conquistaPanel.add(conquistaScrollPane, BorderLayout.CENTER);
-        conquistaPanel.setOpaque(false);
-        painelMeuProgresso.add(conquistaPanel);
-        tabbedPane.addTab(" Meu Progresso ", painelMeuProgresso);
-
-        JPanel guiaConquistasPanel = new JPanel(new BorderLayout(5,10));
-        guiaConquistasPanel.setOpaque(false);
-        JLabel tituloGuiaConquistas = new JLabel("Guia de Todas as Conquistas", SwingConstants.CENTER);
-        tituloGuiaConquistas.setFont(FONTE_TITULO_PAINEL);
-        tituloGuiaConquistas.setForeground(getCorTextoTituloPainel());
-        tituloGuiaConquistas.setBorder(new EmptyBorder(10,0,15,0));
-        guiaConquistasPanel.add(tituloGuiaConquistas, BorderLayout.NORTH);
-        todasConquistasListModel = new DefaultListModel<>();
-        todasConquistasJList = new JList<>(todasConquistasListModel);
-        todasConquistasJList.setCellRenderer(new ConquistaListCellRenderer(USAR_TEMA_ESCURO));
-        todasConquistasJList.setFont(FONTE_LISTA);
-        JScrollPane todasConquistasScrollPane = new JScrollPane(todasConquistasJList);
-        if (USAR_TEMA_ESCURO) {
-            todasConquistasScrollPane.setOpaque(false);
-            todasConquistasScrollPane.getViewport().setOpaque(false);
-            todasConquistasJList.setOpaque(false);
-        }
-        guiaConquistasPanel.add(todasConquistasScrollPane, BorderLayout.CENTER);
-        tabbedPane.addTab(" Guia de Conquistas ", guiaConquistasPanel);
-        add(tabbedPane, BorderLayout.CENTER);
-
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 15));
-        buttonPanel.setOpaque(false);
-        refreshButton = createStyledButton("Recarregar Tudo");
-        refreshButton.addActionListener(e -> {
-            if (usuarioIdAtual != -1) {
-                loadHabits();
-                atualizarDisplayUsuario();
-                loadTodasConquistasGuia();
-            } else {
-                JOptionPane.showMessageDialog(this, "Nenhum usuário selecionado para recarregar.", "Aviso", JOptionPane.WARNING_MESSAGE);
+        habitJList.addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                atualizarEstadoBotoesAcao();
             }
         });
-        buttonPanel.add(refreshButton);
+        JScrollPane habitScrollPane = new JScrollPane(habitJList);
+        if (USAR_TEMA_ESCURO) {
+            habitScrollPane.getViewport().setOpaque(false); 
+            habitJList.setOpaque(false); 
+            habitScrollPane.setOpaque(false);
+            habitScrollPane.setBorder(BorderFactory.createEmptyBorder()); 
+        } else {
+            habitJList.setBackground(Color.WHITE);
+            habitScrollPane.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY)); 
+        }
+        habitPanel.add(habitScrollPane, BorderLayout.CENTER);
+        
+        JPanel painelBotoesHabitos = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 5)); 
+        painelBotoesHabitos.setOpaque(false);
 
-        addButton = createStyledButton("Adicionar Hábito");
+        addButton = createStyledButton("+");
+        addButton.setToolTipText("Adicionar Novo Hábito");
         addButton.addActionListener(e -> abrirDialogoAdicionarHabito());
-        buttonPanel.add(addButton);
 
-        editButton = createStyledButton("Editar Hábito");
+        editButton = createStyledButton("✎");
+        editButton.setToolTipText("Editar Hábito Selecionado");
         editButton.addActionListener(e -> abrirDialogoEditarHabito());
-        buttonPanel.add(editButton);
 
-        deleteButton = createStyledButton("Excluir Hábito");
+        deleteButton = createStyledButton("-");
+        deleteButton.setToolTipText("Excluir Hábito Selecionado");
         deleteButton.addActionListener(e -> excluirHabitoSelecionado());
-        buttonPanel.add(deleteButton);
 
-        markDoneButton = createStyledButton("Marcar Como Feito");
+        markDoneButton = createStyledButton("✔");
+        markDoneButton.setToolTipText("Marcar/Desmarcar Hábito");
         markDoneButton.addActionListener(e -> marcarHabitoSelecionadoComoFeito());
-        buttonPanel.add(markDoneButton);
-        add(buttonPanel, BorderLayout.SOUTH);
-        atualizarEstadoBotoesAcao(); // Chamado aqui para estado inicial correto
+        
+        painelBotoesHabitos.add(addButton);
+        painelBotoesHabitos.add(editButton);
+        painelBotoesHabitos.add(deleteButton);
+        painelBotoesHabitos.add(markDoneButton);
+        habitPanel.add(painelBotoesHabitos, BorderLayout.SOUTH);
+
+        painelPrincipalConteudo.add(habitPanel);
+
+
+        calendarioPanel = new JPanel(new BorderLayout(5,5));
+        calendarioPanel.setOpaque(USAR_TEMA_ESCURO ? false : true);
+        if(USAR_TEMA_ESCURO) calendarioPanel.setBackground(getCorPainelInterno()); else calendarioPanel.setBackground(getCorFundoGeral());
+        calendarioPanel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createTitledBorder(BorderFactory.createLineBorder(USAR_TEMA_ESCURO ? COR_BORDA_ESCURO : Color.GRAY), "Navegar Datas", TitledBorder.LEADING, TitledBorder.TOP, FONTE_TITULO_PAINEL_NOVA, getCorTextoTituloPainel()),
+            new EmptyBorder(8, 8, 8, 8)
+        ));
+        
+        JPanel topoCalendarioPanel = new JPanel(new BorderLayout());
+        topoCalendarioPanel.setOpaque(false);
+        JButton btnIrParaHoje = createStyledButton("Ir para Hoje"); 
+        btnIrParaHoje.setFont(new Font("Segoe UI", Font.BOLD, 13)); 
+        btnIrParaHoje.addActionListener(e -> {
+            setDataContextoHabitos(LocalDate.now()); // "Hoje" real
+        });
+        topoCalendarioPanel.add(btnIrParaHoje, BorderLayout.EAST); 
+        calendarioPanel.add(topoCalendarioPanel, BorderLayout.NORTH);
+
+        calendarioView = new JCalendar();
+        calendarioView.setWeekOfYearVisible(false);
+        if (USAR_TEMA_ESCURO) {
+            calendarioView.setDecorationBackgroundColor(getCorPainelInterno().darker());
+        }
+        calendarioView.getYearChooser().getSpinner().setFont(FONTE_TEXTO_GERAL);
+        calendarioView.getMonthChooser().getComboBox().setFont(FONTE_TEXTO_GERAL);
+        
+        PropertyChangeListener calendarDateChangeListener = evt -> {
+            String propName = evt.getPropertyName();
+            if ("day".equals(propName) || 
+                ("calendar".equals(propName) && evt.getOldValue() != null && evt.getNewValue() != null)) { 
+                
+                java.util.Date utilDate = calendarioView.getDate();
+                if (utilDate != null) {
+                    LocalDate novaDataContexto = utilDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+                    setDataContextoHabitos(novaDataContexto); 
+                }
+            }
+        };
+        calendarioView.getDayChooser().addPropertyChangeListener("day", calendarDateChangeListener);
+        calendarioView.addPropertyChangeListener("calendar", calendarDateChangeListener);
+
+        calendarioPanel.add(calendarioView, BorderLayout.CENTER);
+        painelPrincipalConteudo.add(calendarioPanel);
+
+
+        painelObjetivos = new JPanel(new BorderLayout(5, 5));
+        painelObjetivos.setOpaque(USAR_TEMA_ESCURO ? false : true);
+        if(USAR_TEMA_ESCURO) painelObjetivos.setBackground(getCorPainelInterno()); else painelObjetivos.setBackground(getCorFundoGeral());
+        painelObjetivos.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createTitledBorder(BorderFactory.createLineBorder(USAR_TEMA_ESCURO ? COR_BORDA_ESCURO : Color.GRAY), "Meus Objetivos", TitledBorder.LEADING, TitledBorder.TOP, FONTE_TITULO_PAINEL_NOVA, getCorTextoTituloPainel()),
+            new EmptyBorder(8, 8, 8, 8)
+        ));
+        objetivosListModel = new DefaultListModel<>();
+        objetivosJList = new JList<>(objetivosListModel);
+        objetivosJList.setCellRenderer(new ObjetivoListCellRenderer(USAR_TEMA_ESCURO)); 
+        
+        objetivosJList.addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                atualizarEstadoBotoesObjetivo();
+            }
+        });
+        JScrollPane objetivosScrollPane = new JScrollPane(objetivosJList);
+         if (USAR_TEMA_ESCURO) { 
+            objetivosScrollPane.getViewport().setOpaque(false); 
+            objetivosJList.setOpaque(false); 
+            objetivosScrollPane.setOpaque(false);
+            objetivosScrollPane.setBorder(BorderFactory.createEmptyBorder());
+        } else {
+            objetivosJList.setBackground(Color.WHITE);
+            objetivosScrollPane.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
+        }
+        painelObjetivos.add(objetivosScrollPane, BorderLayout.CENTER);
+
+
+        JPanel painelBotoesObjetivo = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 5)); 
+        painelBotoesObjetivo.setOpaque(false);
+        btnAddObjetivo = createStyledButton("+");
+        btnAddObjetivo.setToolTipText("Adicionar Novo Objetivo");
+        btnAddObjetivo.addActionListener(e -> abrirDialogoAddObjetivo());
+        btnEditObjetivo = createStyledButton("✎");
+        btnEditObjetivo.setToolTipText("Editar Objetivo Selecionado");
+        btnEditObjetivo.addActionListener(e -> abrirDialogoEditObjetivo());
+        btnDelObjetivo = createStyledButton("🗑");
+        btnDelObjetivo.setToolTipText("Excluir Objetivo Selecionado");
+        btnDelObjetivo.addActionListener(e -> excluirObjetivoSelecionado());
+        btnMarcarObjetivoConcluido = createStyledButton("✔");
+        btnMarcarObjetivoConcluido.setToolTipText("Marcar/Desmarcar Objetivo Como Concluído");
+        btnMarcarObjetivoConcluido.addActionListener(e -> toggleConclusaoObjetivoSelecionado());
+        
+        painelBotoesObjetivo.add(btnAddObjetivo);
+        painelBotoesObjetivo.add(btnEditObjetivo);
+        painelBotoesObjetivo.add(btnDelObjetivo);
+        painelBotoesObjetivo.add(btnMarcarObjetivoConcluido);
+        painelObjetivos.add(painelBotoesObjetivo, BorderLayout.SOUTH);
+        
+        painelPrincipalConteudo.add(painelObjetivos);
+
+        add(painelPrincipalConteudo, BorderLayout.CENTER);
+        
+        atualizarEstadoBotoesAcao(); 
+        atualizarEstadoBotoesObjetivo(); 
+    }
+    
+    private void setDataContextoHabitos(LocalDate novaData) {
+        if (this.dataContextoHabitos != null && this.dataContextoHabitos.equals(novaData)) {
+             // Se a data do calendário JÁ é a novaData, não precisa fazer nada aqui para o calendário.
+             // Apenas garante que o título do painel de hábitos esteja correto.
+             String tituloEsperado = "Hábitos para " + novaData.format(DateTimeFormatter.ofPattern("dd/MM/yy"));
+             if (habitPanelTitledBorder != null && !habitPanelTitledBorder.getTitle().equals(tituloEsperado)) {
+                habitPanelTitledBorder.setTitle(tituloEsperado);
+                if(habitPanel!=null) habitPanel.repaint();
+             }
+            return; // Evita recargas desnecessárias se a data não mudou de fato.
+        }
+        
+        this.dataContextoHabitos = novaData;
+        // System.out.println("Contexto de hábitos atualizado para: " + this.dataContextoHabitos);
+
+        if (calendarioView != null) {
+            // Verifica se a data no JCalendar é diferente antes de chamar setDate para evitar loops de eventos
+            java.util.Date currentDateInCalendar = calendarioView.getDate();
+            LocalDate localDateInCalendar = null;
+            if (currentDateInCalendar != null) {
+                localDateInCalendar = currentDateInCalendar.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+            }
+            if (!novaData.equals(localDateInCalendar)) {
+                 calendarioView.setDate(java.util.Date.from(novaData.atStartOfDay(ZoneId.systemDefault()).toInstant()));
+            }
+        }
+
+        if (habitPanelTitledBorder != null && habitPanel != null) {
+            habitPanelTitledBorder.setTitle("Hábitos para " + this.dataContextoHabitos.format(DateTimeFormatter.ofPattern("dd/MM/yy")));
+            habitPanel.repaint();
+        }
+        
+        // Atualizar dados apenas se houver um usuário logado
+        if (this.usuarioIdAtual != -1) {
+            loadHabits(); 
+            carregarDadosCalendario();
+            // Não recarregar objetivos aqui, a menos que eles dependam diretamente da data de contexto
+        } else {
+            // Se não houver usuário, limpar e atualizar o visual do calendário para a nova data
+            if(habitListModel!=null) habitListModel.clear();
+            limparCoresCalendario();
+            atualizarVisualizacaoCalendario();
+        }
     }
 
     private JButton createStyledButton(String text) {
         JButton button = new JButton(text);
         button.setFont(FONTE_BOTAO);
+        Insets iconPadding = new Insets(8, 10, 8, 10);
+        Insets textPadding = new Insets(8, 18, 8, 18);
+        Insets currentPadding = text.length() > 2 ? textPadding : iconPadding; 
 
         if (USAR_TEMA_ESCURO) {
             button.setBackground(getCorAcentoPrimaria());
             button.setForeground(getCorTextoBotao());
             button.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(COR_BORDA_ESCURO, 1),
-                new EmptyBorder(8, 20, 8, 20)
+                new EmptyBorder(currentPadding)
             ));
-            Color originalBg = getCorAcentoPrimaria();
+            Color originalBg = button.getBackground(); 
             Color hoverBg = getCorAcentoSecundaria();
-
             button.addMouseListener(new java.awt.event.MouseAdapter() {
-                public void mouseEntered(java.awt.event.MouseEvent evt) {
-                    if (button.isEnabled()) button.setBackground(hoverBg);
-                }
-                public void mouseExited(java.awt.event.MouseEvent evt) {
-                    if (button.isEnabled()) button.setBackground(originalBg);
-                }
-                public void mousePressed(java.awt.event.MouseEvent evt) {
-                    if (button.isEnabled()) button.setBackground(hoverBg.darker());
-                }
+                public void mouseEntered(java.awt.event.MouseEvent evt) { if (button.isEnabled()) button.setBackground(hoverBg); }
+                public void mouseExited(java.awt.event.MouseEvent evt) { if (button.isEnabled()) button.setBackground(originalBg); }
+                public void mousePressed(java.awt.event.MouseEvent evt) { if (button.isEnabled()) button.setBackground(hoverBg.darker()); }
                 public void mouseReleased(java.awt.event.MouseEvent evt) {
                     if (button.isEnabled()) {
-                         if (button.getBounds().contains(evt.getPoint())) {
-                            button.setBackground(hoverBg);
-                        } else {
-                            button.setBackground(originalBg);
-                        }
+                        if (button.getBounds().contains(evt.getPoint())) button.setBackground(hoverBg);
+                        else button.setBackground(originalBg);
                     }
                 }
             });
         } else {
-            button.setBackground(COR_LARANJA_TEMA_SECUNDARIA_CLARO);
-            button.setForeground(Color.WHITE);
-            button.setBorder(new EmptyBorder(8, 20, 8, 20));
+            button.setBackground(COR_ACENTO_SECUNDARIO_CLARO);
+            button.setForeground(Color.BLACK); 
+            button.setBorder(new EmptyBorder(currentPadding));
         }
         button.setFocusPainted(false);
         button.setOpaque(true);
@@ -523,52 +701,126 @@ public class MainFrame extends JFrame {
     private void atualizarEstadoBotoesAcao() {
         boolean isUserLoaded = (this.usuarioIdAtual != -1);
         boolean isHabitSelectedInList = isUserLoaded && (habitJList != null && habitJList.getSelectedIndex() != -1);
-
         if (refreshButton != null) refreshButton.setEnabled(isUserLoaded);
         if (addButton != null) addButton.setEnabled(isUserLoaded);
         if (editButton != null) editButton.setEnabled(isHabitSelectedInList);
         if (deleteButton != null) deleteButton.setEnabled(isHabitSelectedInList);
         if (markDoneButton != null) markDoneButton.setEnabled(isHabitSelectedInList);
     }
+    
+    private void atualizarEstadoBotoesObjetivo() {
+        boolean isUserLoaded = (this.usuarioIdAtual != -1);
+        Objetivo selectedObjetivo = (objetivosJList != null) ? objetivosJList.getSelectedValue() : null;
+        boolean isObjetivoSelected = isUserLoaded && selectedObjetivo != null && selectedObjetivo.getId() != 0; // Não permitir ação em placeholders
 
-    // Dentro de MainFrame.java
+        if (btnAddObjetivo != null) btnAddObjetivo.setEnabled(isUserLoaded);
+        if (btnEditObjetivo != null) btnEditObjetivo.setEnabled(isObjetivoSelected);
+        if (btnDelObjetivo != null) btnDelObjetivo.setEnabled(isObjetivoSelected);
+        if (btnMarcarObjetivoConcluido != null) btnMarcarObjetivoConcluido.setEnabled(isObjetivoSelected);
+    }
 
-private void loadHabits() {
+
+    private void loadHabits() {
     if (usuarioIdAtual == -1) {
         if (habitListModel != null) habitListModel.clear();
+        if (this.habitosDoUsuarioAtual != null) this.habitosDoUsuarioAtual.clear();
+        if (habitPanelTitledBorder != null && habitPanel != null) {
+            habitPanelTitledBorder.setTitle("Hábitos");
+            habitPanel.repaint();
+        }
+        atualizarEstadoBotoesAcao();
         return;
     }
     try {
+        if (habitListModel == null) habitListModel = new DefaultListModel<>();
         habitListModel.clear();
-        // ANTES: List<Habit> habits = habitService.getAllHabits();
-        // AGORA: Chamar o método específico do usuário
-        List<Habit> habits = habitService.getHabitsByUserId(this.usuarioIdAtual);
 
-        if (habits != null) {
-            for (Habit habit : habits) {
+        // 1. Busca todos os hábitos do usuário (o DAO já deve carregar os dias da semana para cada um)
+        this.habitosDoUsuarioAtual = habitService.getHabitsByUserId(this.usuarioIdAtual);
+        if (this.habitosDoUsuarioAtual == null) this.habitosDoUsuarioAtual = new ArrayList<>();
+
+        // 2. Filtra os hábitos para exibir apenas os relevantes para dataContextoHabitos
+        final DayOfWeek diaDaSemanaContexto = dataContextoHabitos.getDayOfWeek();
+        List<Habit> habitosParaExibirNaLista = this.habitosDoUsuarioAtual.stream()
+            .filter(h -> {
+                if (h.getCreationDate() == null || h.getCreationDate().isAfter(dataContextoHabitos)) {
+                    return false; 
+                }
+                Set<DayOfWeek> diasProgramados = h.getDiasDaSemana();
+                // Se for obrigatório selecionar dias ao criar/editar, diasProgramados nunca será nulo ou vazio
+                // para hábitos válidos. Se for opcional, decida o comportamento.
+                // Assumindo que, se vazio, não aparece.
+                if (diasProgramados == null || diasProgramados.isEmpty()) {
+                    // Para hábitos antigos sem dias definidos, você pode querer que eles apareçam todos os dias
+                    // ou não apareçam até serem editados. Para a nova funcionalidade, não aparecer é mais consistente.
+                    // Se quiser que apareçam todos os dias se não especificado: return true;
+                    return false; 
+                }
+                return diasProgramados.contains(diaDaSemanaContexto);
+            })
+            .collect(Collectors.toList());
+
+        // 3. Processa os hábitos filtrados (status, sequência) e adiciona ao modelo da lista
+        if (!habitosParaExibirNaLista.isEmpty()) {
+            List<Integer> habitIdsParaStatus = habitosParaExibirNaLista.stream().map(Habit::getId).collect(Collectors.toList());
+            Map<Integer, Boolean> statusHabitosNoContexto = habitService.getStatusHabitosPorDia(this.usuarioIdAtual, habitIdsParaStatus, dataContextoHabitos);
+
+            for (Habit habit : habitosParaExibirNaLista) {
+                boolean cumpridoNaDataContexto = statusHabitosNoContexto.getOrDefault(habit.getId(), false);
+                habit.setCumpridoHoje(cumpridoNaDataContexto);
+
+                try {
+                    int sequenciaExibida;
+                    if (cumpridoNaDataContexto) {
+                        sequenciaExibida = habitService.getSequenciaEfetivaTerminadaEm(this.usuarioIdAtual, habit.getId(), dataContextoHabitos);
+                    } else {
+                        LocalDate diaAnteriorAoContexto = dataContextoHabitos.minusDays(1);
+                        if (habit.getCreationDate().isAfter(diaAnteriorAoContexto)) {
+                            sequenciaExibida = 0;
+                        } else {
+                            sequenciaExibida = habitService.getSequenciaEfetivaTerminadaEm(this.usuarioIdAtual, habit.getId(), diaAnteriorAoContexto);
+                        }
+                    }
+                    habit.setSequenciaAtual(Math.max(0, sequenciaExibida));
+                } catch (PersistenceException | UserNotFoundException | HabitNotFoundException e) {
+                    System.err.println("Erro ao calcular sequência para o hábito ID " + habit.getId() +
+                                       " para data " + dataContextoHabitos + ": " + e.getMessage());
+                    habit.setSequenciaAtual(0);
+                }
+            }
+
+            habitosParaExibirNaLista.sort(
+                Comparator.comparing(Habit::isCumpridoHoje)
+                    .thenComparing(Habit::getSequenciaAtual, Comparator.reverseOrder())
+                    .thenComparing(Habit::getName, String.CASE_INSENSITIVE_ORDER)
+            );
+            for (Habit habit : habitosParaExibirNaLista) {
                 habitListModel.addElement(habit);
             }
+        } else if (usuarioIdAtual != -1) { // Lista de hábitos filtrados vazia
+            Habit placeholder = new Habit();
+            placeholder.setId(0); 
+            placeholder.setName("Nenhum hábito agendado para este dia.");
+            placeholder.setDescription("");
+            habitListModel.addElement(placeholder);
         }
-    } catch (UserNotFoundException unfe) { // Captura se o usuário não for encontrado pelo serviço
-        JOptionPane.showMessageDialog(this,
-                "Usuário não encontrado ao carregar hábitos: " + unfe.getMessage(),
-                "Erro de Usuário", JOptionPane.ERROR_MESSAGE);
-        if (habitListModel != null) habitListModel.clear(); // Limpa a lista em caso de erro
-    } catch (PersistenceException pe) { // Captura erros de persistência
-        JOptionPane.showMessageDialog(this,
-                "Erro de persistência ao carregar hábitos: " + pe.getMessage(),
-                "Erro de Backend", JOptionPane.ERROR_MESSAGE);
+        
+        if (habitPanelTitledBorder != null && habitPanel != null) {
+            habitPanelTitledBorder.setTitle("Hábitos para " + dataContextoHabitos.format(DateTimeFormatter.ofPattern("dd/MM/yy")));
+            habitPanel.repaint();
+        }
+
+    } catch (UserNotFoundException | PersistenceException e) {
+        JOptionPane.showMessageDialog(this, "Erro ao carregar hábitos: " + e.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
         if (habitListModel != null) habitListModel.clear();
-    } catch (Exception e) { // Captura outras exceções inesperadas
-        JOptionPane.showMessageDialog(this,
-                "Erro inesperado ao carregar hábitos: " + e.getMessage(),
-                "Erro", JOptionPane.ERROR_MESSAGE);
-        if (habitListModel != null) habitListModel.clear();
+    } catch (Exception e) {
+        JOptionPane.showMessageDialog(this, "Erro inesperado ao carregar hábitos: " + e.getMessage(), "Erro Inesperado", JOptionPane.ERROR_MESSAGE);
         e.printStackTrace();
+        if (habitListModel != null) habitListModel.clear();
     }
     atualizarEstadoBotoesAcao();
 }
-
+    
     private void atualizarDisplayUsuario() {
         if (usuarioIdAtual == -1) {
             if (nomeUsuarioLabel != null) nomeUsuarioLabel.setText("Usuário: [Nenhum Selecionado]");
@@ -578,192 +830,537 @@ private void loadHabits() {
                 pontosProgressBar.setString("0 / 100 pts");
                 pontosProgressBar.setMaximum(100);
             }
-            if (conquistaListModel != null) conquistaListModel.clear();
             return;
         }
         try {
             Usuario currentUser = habitService.getUsuarioById(this.usuarioIdAtual);
             nomeUsuarioLabel.setText("Usuário: " + currentUser.getNome() + " (ID: " + currentUser.getId() + ")");
             pontosUsuarioLabel.setText("Pontos: " + currentUser.getPontos());
-
             int pontos = currentUser.getPontos();
             int metaProximoNivel = ((pontos / 100) + 1) * 100;
             if (pontos == 0) metaProximoNivel = 100;
-            if (metaProximoNivel == pontos && pontos > 0) metaProximoNivel +=100;
+            else if (pontos % 100 == 0 && pontos > 0) metaProximoNivel = pontos + 100; 
+            else if (metaProximoNivel <= pontos) metaProximoNivel = ((pontos / 100) + 2) * 100; // Ajuste se já ultrapassou
 
             pontosProgressBar.setMaximum(metaProximoNivel);
             pontosProgressBar.setValue(pontos);
             pontosProgressBar.setString(pontos + " / " + metaProximoNivel + " pts");
-
-            if (conquistaListModel != null) conquistaListModel.clear();
-            List<Conquista> conquistas = habitService.getConquistasDesbloqueadasUsuario(this.usuarioIdAtual);
-            if (conquistas != null) {
-                for (Conquista conquista : conquistas) {
-                    conquistaListModel.addElement(conquista);
-                }
-            }
         } catch (UserNotFoundException | PersistenceException e) {
             nomeUsuarioLabel.setText("Usuário ID: " + this.usuarioIdAtual + " (Erro ao carregar)");
             pontosUsuarioLabel.setText("Pontos: -");
             if (pontosProgressBar != null) pontosProgressBar.setValue(0);
-            if (conquistaListModel != null) conquistaListModel.clear();
             JOptionPane.showMessageDialog(this, "Dados do usuário (ID: " + this.usuarioIdAtual + ") não puderam ser carregados: " + e.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Erro ao carregar dados do usuário: " + e.getMessage(), "Erro de Backend", JOptionPane.ERROR_MESSAGE);
             e.printStackTrace();
         }
-        atualizarEstadoBotoesAcao(); // Garante que os botões reflitam o estado do usuário
-    }
-
-    private void loadTodasConquistasGuia() {
-        if (this.usuarioIdAtual == -1) {
-            if (todasConquistasListModel != null) todasConquistasListModel.clear();
-            return;
-        }
-        try {
-            if (todasConquistasListModel != null) todasConquistasListModel.clear();
-            List<Conquista> todasDefinicoes = habitService.getAllConquistasPossiveis();
-            if (todasDefinicoes != null) {
-                for (Conquista definicao : todasDefinicoes) {
-                    todasConquistasListModel.addElement(definicao);
-                }
-            }
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Erro ao carregar guia de conquistas: " + e.getMessage(), "Erro de Backend", JOptionPane.ERROR_MESSAGE);
-            e.printStackTrace();
-        }
     }
 
     private void abrirDialogoAdicionarHabito() {
-        if (usuarioIdAtual == -1) {
-            JOptionPane.showMessageDialog(this, "Por favor, identifique um usuário primeiro.", "Usuário Necessário", JOptionPane.WARNING_MESSAGE);
+        if (this.usuarioIdAtual == -1) {
+            JOptionPane.showMessageDialog(this, "Nenhum usuário está logado. Faça login ou crie um usuário para adicionar hábitos.", "Usuário Não Logado", JOptionPane.WARNING_MESSAGE);
             return;
         }
-        // Certifique-se que AddHabitDialog existe e está no pacote com.habitracker.ui
-        // e que seu construtor corresponde ao chamado aqui.
-        // Adapte o AddHabitDialog para o tema escuro se necessário.
-        AddHabitDialog addDialog = new AddHabitDialog(this, true, this.habitService, this.usuarioIdAtual, USAR_TEMA_ESCURO);
-        addDialog.setVisible(true);
-        if (addDialog.isHabitoAdicionadoComSucesso()) {
-            loadHabits();
-            atualizarDisplayUsuario();
-            JOptionPane.showMessageDialog(this, "Novo hábito '" + addDialog.getNovoHabito().getName() + "' adicionado!", "Sucesso", JOptionPane.INFORMATION_MESSAGE);
+        AddHabitDialog dialog = new AddHabitDialog(this, true, this.habitService, this.usuarioIdAtual, USAR_TEMA_ESCURO);
+        dialog.setVisible(true);
+        if (dialog.isHabitoAdicionadoComSucesso()) {
+            JOptionPane.showMessageDialog(this, "Hábito '" + dialog.getNovoHabito().getName() + "' adicionado com sucesso!", "Hábito Adicionado", JOptionPane.INFORMATION_MESSAGE);
+            this.habitosDoUsuarioAtual = null; 
+            loadHabits(); 
+            atualizarDisplayUsuario(); 
+            carregarDadosCalendario(); 
         }
     }
 
     private void abrirDialogoEditarHabito() {
-        if (usuarioIdAtual == -1) {
-            JOptionPane.showMessageDialog(this, "Por favor, identifique um usuário primeiro.", "Usuário Necessário", JOptionPane.WARNING_MESSAGE);
+        if (this.usuarioIdAtual == -1) {
+            JOptionPane.showMessageDialog(this, "Faça login para editar hábitos.", "Usuário Não Logado", JOptionPane.WARNING_MESSAGE);
             return;
         }
         Habit selectedHabit = habitJList.getSelectedValue();
         if (selectedHabit == null) {
-            JOptionPane.showMessageDialog(this, "Por favor, selecione um hábito para editar.", "Nenhum Hábito", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Por favor, selecione um hábito para editar.", "Nenhum Hábito Selecionado", JOptionPane.WARNING_MESSAGE);
             return;
         }
-        // Certifique-se que EditHabitDialog existe e está no pacote com.habitracker.ui
-        // e que seu construtor corresponde ao chamado aqui.
-        // Adapte o EditHabitDialog para o tema escuro se necessário.
-        EditHabitDialog editDialog = new EditHabitDialog(this, true, this.habitService, selectedHabit, USAR_TEMA_ESCURO);
-        editDialog.setVisible(true);
-        if (editDialog.isHabitoAtualizadoComSucesso()) {
-            loadHabits(); // Recarrega para refletir a mudança
-            // atualizarDisplayUsuario(); // Opcional, se a edição puder afetar pontos/conquistas
-            JOptionPane.showMessageDialog(this, "Hábito '" + editDialog.getHabitoAtualizado().getName() + "' atualizado!", "Sucesso", JOptionPane.INFORMATION_MESSAGE);
+        EditHabitDialog dialog = new EditHabitDialog(this, true, this.habitService, selectedHabit, USAR_TEMA_ESCURO);
+        dialog.setVisible(true);
+        if (dialog.isHabitoAtualizadoComSucesso()) {
+            JOptionPane.showMessageDialog(this, "Hábito '" + dialog.getHabitoAtualizado().getName() + "' atualizado com sucesso!", "Hábito Atualizado", JOptionPane.INFORMATION_MESSAGE);
+            this.habitosDoUsuarioAtual = null; 
+            loadHabits();
+            atualizarDisplayUsuario();
+            carregarDadosCalendario();
         }
     }
 
     private void excluirHabitoSelecionado() {
-        if (usuarioIdAtual == -1) {
-            JOptionPane.showMessageDialog(this, "Por favor, identifique um usuário primeiro.", "Usuário Necessário", JOptionPane.WARNING_MESSAGE);
+        if (this.usuarioIdAtual == -1) {
+            JOptionPane.showMessageDialog(this, "Faça login para excluir hábitos.", "Usuário Não Logado", JOptionPane.WARNING_MESSAGE);
             return;
         }
         Habit selectedHabit = habitJList.getSelectedValue();
         if (selectedHabit == null) {
-            JOptionPane.showMessageDialog(this, "Por favor, selecione um hábito para excluir.", "Nenhum Hábito", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Por favor, selecione um hábito para excluir.", "Nenhum Hábito Selecionado", JOptionPane.WARNING_MESSAGE);
             return;
         }
-        int confirm = JOptionPane.showConfirmDialog(this,
-                "Tem certeza que deseja excluir o hábito '" + selectedHabit.getName() + "'?",
-                "Confirmar Exclusão", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        int confirm = JOptionPane.showConfirmDialog(this, "Tem certeza que deseja excluir o hábito '" + selectedHabit.getName() + "'?\nEsta ação não pode ser desfeita e excluirá o histórico de progresso associado a ele.", "Confirmar Exclusão", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (confirm == JOptionPane.YES_OPTION) {
             try {
-                boolean sucesso = habitService.deleteHabit(selectedHabit.getId());
-                if (sucesso) {
+                boolean deletado = habitService.deleteHabit(selectedHabit.getId());
+                if (deletado) {
+                    JOptionPane.showMessageDialog(this, "Hábito '" + selectedHabit.getName() + "' excluído com sucesso.", "Hábito Excluído", JOptionPane.INFORMATION_MESSAGE);
+                    this.habitosDoUsuarioAtual = null; 
                     loadHabits();
                     atualizarDisplayUsuario();
-                    JOptionPane.showMessageDialog(this, "Hábito excluído!", "Sucesso", JOptionPane.INFORMATION_MESSAGE);
+                    carregarDadosCalendario();
                 } else {
-                    JOptionPane.showMessageDialog(this, "Não foi possível excluir o hábito (o serviço indicou falha).", "Erro", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(this, "Não foi possível excluir o hábito.", "Erro na Exclusão", JOptionPane.ERROR_MESSAGE);
                 }
-            } catch (HabitNotFoundException hnfe){
-                JOptionPane.showMessageDialog(this, "Erro ao excluir: " + hnfe.getMessage(), "Hábito Não Encontrado", JOptionPane.ERROR_MESSAGE);
-                loadHabits(); // Recarrega a lista, pois o hábito pode ter sido removido por outro meio
-                atualizarDisplayUsuario();
+            } catch (HabitNotFoundException hnfe) {
+                JOptionPane.showMessageDialog(this, "Erro: Hábito não encontrado para exclusão. " + hnfe.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
+                this.habitosDoUsuarioAtual = null; loadHabits(); 
             } catch (PersistenceException pe) {
                 JOptionPane.showMessageDialog(this, "Erro de persistência ao excluir o hábito: " + pe.getMessage(), "Erro de Backend", JOptionPane.ERROR_MESSAGE);
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(this, "Ocorreu um erro inesperado ao excluir o hábito: " + ex.getMessage(), "Erro Inesperado", JOptionPane.ERROR_MESSAGE);
-                ex.printStackTrace();
             }
         }
     }
 
     private void marcarHabitoSelecionadoComoFeito() {
-        if (usuarioIdAtual == -1) {
-            JOptionPane.showMessageDialog(this, "Por favor, identifique um usuário primeiro.", "Usuário Necessário", JOptionPane.WARNING_MESSAGE);
+        if (this.usuarioIdAtual == -1) {
+            JOptionPane.showMessageDialog(this, "Faça login para marcar hábitos.", "Usuário Não Logado", JOptionPane.WARNING_MESSAGE);
             return;
         }
         Habit selectedHabit = habitJList.getSelectedValue();
         if (selectedHabit == null) {
-            JOptionPane.showMessageDialog(this, "Por favor, selecione um hábito.", "Nenhum Hábito", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Por favor, selecione um hábito para marcar como feito.", "Nenhum Hábito Selecionado", JOptionPane.WARNING_MESSAGE);
             return;
         }
+        
+        LocalDate dataParaMarcar = this.dataContextoHabitos; 
+        
+        // System.out.println("DEBUG: Tentando marcar hábito '" + selectedHabit.getName() + "' para a DATA: " + dataParaMarcar);
 
-        LocalDate hoje = LocalDate.now();
+        if (dataParaMarcar.isAfter(getDataAtualParaLogica())) { 
+             JOptionPane.showMessageDialog(this, "Não é possível marcar um hábito como feito para uma data futura.", "Data Inválida", JOptionPane.WARNING_MESSAGE);
+             return;
+        }
+
         try {
-            FeedbackMarcacaoDTO feedback = habitService.marcarHabitoComoFeito(this.usuarioIdAtual, selectedHabit.getId(), hoje);
-
-            StringBuilder feedbackMessage = new StringBuilder();
-            if (feedback.isSucesso()) {
-                feedbackMessage.append(feedback.getMensagem()).append("\n");
-                if (feedback.getPontosGanhosNestaMarcacao() > 0) {
-                    feedbackMessage.append("Você ganhou: ").append(feedback.getPontosGanhosNestaMarcacao()).append(" pontos!\n");
-                }
-                feedbackMessage.append("Seu total de pontos agora é: ").append(feedback.getTotalPontosUsuarioAposMarcacao()).append(".\n");
-                if (feedback.getNovasConquistasDesbloqueadas() != null && !feedback.getNovasConquistasDesbloqueadas().isEmpty()) {
-                    feedbackMessage.append("\nNovas Conquistas Desbloqueadas:\n");
-                    for (Conquista c : feedback.getNovasConquistasDesbloqueadas()) {
-                        feedbackMessage.append("- ").append(c.getNome()).append(" (Bônus: ").append(c.getPontosBonus()).append(" pts)\n");
-                    }
-                }
-                JOptionPane.showMessageDialog(this, feedbackMessage.toString(), "Hábito Marcado!", JOptionPane.INFORMATION_MESSAGE);
-            } else {
-                JOptionPane.showMessageDialog(this, feedback.getMensagem(), "Atenção", JOptionPane.WARNING_MESSAGE);
+            FeedbackMarcacaoDTO feedback = habitService.marcarHabitoComoFeito(this.usuarioIdAtual, selectedHabit.getId(), dataParaMarcar);
+            
+            StringBuilder feedbackMessage = new StringBuilder(feedback.getMensagem());
+            if (feedback.getPontosGanhosNestaMarcacao() > 0) {
+                feedbackMessage.append("\nVocê ganhou ").append(feedback.getPontosGanhosNestaMarcacao()).append(" pontos!");
             }
-            atualizarDisplayUsuario(); // Atualiza pontos e conquistas
-        } catch (UserNotFoundException unfe) {
-            JOptionPane.showMessageDialog(this, "Erro: Usuário (ID: " + this.usuarioIdAtual + ") não encontrado para esta ação.\n" + unfe.getMessage(), "Erro de Usuário", JOptionPane.ERROR_MESSAGE);
-        } catch (HabitNotFoundException hnfe) {
-            JOptionPane.showMessageDialog(this, "Erro ao marcar hábito: " + hnfe.getMessage(), "Hábito Não Encontrado", JOptionPane.ERROR_MESSAGE);
-        } catch (ValidationException ve) {
-            JOptionPane.showMessageDialog(this, "Erro de validação ao marcar hábito: " + ve.getMessage(), "Erro de Validação", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, feedbackMessage.toString(), "Hábito Marcado", JOptionPane.INFORMATION_MESSAGE);
+
+            this.habitosDoUsuarioAtual = null; 
+            loadHabits(); 
+            atualizarDisplayUsuario(); 
+            carregarDadosCalendario(); 
+            
+            if (feedback.getPontosGanhosNestaMarcacao() > 0) {
+                 loadObjetivos(); // Recarrega objetivos se pontos foram ganhos (placeholder para lógica de interdependência)
+            }
+
+        } catch (UserNotFoundException | HabitNotFoundException e) {
+            JOptionPane.showMessageDialog(this, "Erro ao marcar hábito: " + e.getMessage(), "Erro de Dados", JOptionPane.ERROR_MESSAGE);
+        } catch (PersistenceException e) {
+            JOptionPane.showMessageDialog(this, "Erro de persistência ao marcar hábito: " + e.getMessage(), "Erro de Backend", JOptionPane.ERROR_MESSAGE);
+        } catch (ValidationException e) {
+            JOptionPane.showMessageDialog(this, "Erro de validação ao marcar hábito: " + e.getMessage(), "Erro de Validação", JOptionPane.WARNING_MESSAGE);
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Ocorreu um erro inesperado ao marcar o hábito: " + e.getMessage(), "Erro Inesperado", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
+    private void carregarDadosCalendario() {
+        if (usuarioIdAtual == -1 || calendarioView == null || habitService == null) {
+            limparCoresCalendario(); // Limpa as cores mas não necessariamente repinta o calendário com os botões
+            if(calendarioView != null) atualizarVisualizacaoCalendario(); // Força a repintura com o estado limpo
+            return;
+        }
+        java.util.Calendar cal = calendarioView.getCalendar(); // Mês/Ano atualmente visualizado no JCalendar
+        int ano = cal.get(java.util.Calendar.YEAR);
+        int mes = cal.get(java.util.Calendar.MONTH) + 1; // JCalendar usa mês 0-11
+
+        try {
+            // this.habitosDoUsuarioAtual já deve estar carregado. 
+            // Se não estiver, ou se a lógica de atualização for diferente, carregue aqui.
+            // Por consistência, vamos assumir que this.habitosDoUsuarioAtual está atualizado.
+            if (this.habitosDoUsuarioAtual == null) { 
+                 this.habitosDoUsuarioAtual = habitService.getHabitsByUserId(this.usuarioIdAtual);
+                 if (this.habitosDoUsuarioAtual == null) this.habitosDoUsuarioAtual = new ArrayList<>();
+            }
+            
+            this.progressoDoMesAtual = habitService.getProgressoDiarioDoMes(usuarioIdAtual, ano, mes);
+            if (this.progressoDoMesAtual == null) {
+                this.progressoDoMesAtual = new ArrayList<>();
+            }
+            this.statusDiasCalendario.clear(); // Limpa o mapa de status para o novo cálculo
+
+            Map<LocalDate, List<ProgressoDiario>> progressosPorDataMap = this.progressoDoMesAtual.stream()
+                .collect(Collectors.groupingBy(ProgressoDiario::getDataRegistro));
+            
+            LocalDate primeiroDiaDoMes = LocalDate.of(ano, mes, 1);
+            LocalDate ultimoDiaDoMes = primeiroDiaDoMes.withDayOfMonth(primeiroDiaDoMes.lengthOfMonth());
+            LocalDate hojeLogicaApp = getDataAtualParaLogica();
+
+            for (LocalDate dataSendoAvalidada = primeiroDiaDoMes; !dataSendoAvalidada.isAfter(ultimoDiaDoMes); dataSendoAvalidada = dataSendoAvalidada.plusDays(1)) {
+                final LocalDate diaFinalLoop = dataSendoAvalidada; // Data do calendário sendo processada
+                final DayOfWeek diaDaSemanaAtualLoop = diaFinalLoop.getDayOfWeek();
+
+                // Filtrar hábitos que são relevantes para ESTE dia específico do calendário
+                List<Habit> habitosAgendadosParaEsteDia = this.habitosDoUsuarioAtual.stream()
+                    .filter(h -> h.getCreationDate() != null && !h.getCreationDate().isAfter(diaFinalLoop))
+                    .filter(h -> {
+                        Set<DayOfWeek> diasProgramados = h.getDiasDaSemana();
+                        if (diasProgramados == null || diasProgramados.isEmpty()) {
+                            return false; // Não agendado se não houver dias definidos
+                        }
+                        return diasProgramados.contains(diaDaSemanaAtualLoop);
+                    })
+                    .collect(Collectors.toList());
+                
+                if (habitosAgendadosParaEsteDia.isEmpty()){
+                    // Se não há NENHUM hábito agendado para este dia da semana,
+                    // não o marcamos como NAO_CUMPRIDO. Ele ficará com a cor padrão.
+                    // Você pode adicionar um status "SEM_HABITOS_AGENDADOS" se quiser uma cor diferente.
+                    statusDiasCalendario.put(diaFinalLoop, "SEM_HABITOS_AGENDADOS"); // NOVO STATUS
+                    continue; 
+                }
+
+                // Se chegou aqui, há hábitos agendados para este dia. Vamos verificar o progresso.
+                List<ProgressoDiario> progressosDoDiaEspecifico = progressosPorDataMap.getOrDefault(diaFinalLoop, Collections.emptyList());
+                long totalHabitosAgendadosNoDia = habitosAgendadosParaEsteDia.size();
+                
+                Set<Integer> idsHabitosAgendados = habitosAgendadosParaEsteDia.stream()
+                                                    .map(Habit::getId)
+                                                    .collect(Collectors.toSet());
+
+                long cumpridosDentreOsAgendados = progressosDoDiaEspecifico.stream()
+                    .filter(pd -> idsHabitosAgendados.contains(pd.getHabitoId()) && pd.isStatusCumprido())
+                    .count();
+
+                if (cumpridosDentreOsAgendados == totalHabitosAgendadosNoDia) {
+                    statusDiasCalendario.put(diaFinalLoop, "CUMPRIDO_TOTAL");
+                } else if (cumpridosDentreOsAgendados > 0) {
+                    statusDiasCalendario.put(diaFinalLoop, "CUMPRIDO_PARCIAL");
+                } else { // Nenhum dos hábitos AGENDADOS foi cumprido
+                    if (diaFinalLoop.isBefore(hojeLogicaApp) || diaFinalLoop.isEqual(hojeLogicaApp)) {
+                        statusDiasCalendario.put(diaFinalLoop, "NAO_CUMPRIDO");
+                    }
+                    // Se for uma data futura com hábitos agendados mas não cumpridos,
+                    // não marcamos como NAO_CUMPRIDO ainda. O dia ficará com a cor padrão
+                    // (ou a cor de "SEM_HABITOS_AGENDADOS" se o filtro acima não fosse tão estrito,
+                    // mas como o filtro é estrito, ele só entra aqui se houver hábitos agendados).
+                }
+            } // Fim do loop pelos dias do mês
+            atualizarVisualizacaoCalendario();
+
+        } catch (UserNotFoundException | PersistenceException e) {
+            JOptionPane.showMessageDialog(this, "Erro ao carregar dados do calendário: " + e.getMessage(), "Erro de Calendário", JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();
+            limparCoresCalendario(); 
+            atualizarVisualizacaoCalendario();
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Erro inesperado ao carregar dados do calendário: " + e.getMessage(), "Erro Inesperado", JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();
+            limparCoresCalendario();
+            atualizarVisualizacaoCalendario();
+        }
+    }
+    
+    private void limparCoresCalendario() {
+        if (calendarioView == null || calendarioView.getDayChooser() == null || calendarioView.getDayChooser().getDayPanel() == null) return;
+        
+        JDayChooser dayChooser = calendarioView.getDayChooser();
+        JPanel dayPanel = dayChooser.getDayPanel();
+        Component[] components = dayPanel.getComponents();
+        
+        Color emptyDayBg = dayChooser.getBackground(); 
+        Color defaultMonthDayBg = USAR_TEMA_ESCURO ? new Color(50,50,50) : new Color(230,230,230);
+
+        for (Component comp : components) {
+            if (comp instanceof JButton) {
+                JButton dayButton = (JButton) comp;
+                String dayText = dayButton.getText();
+
+                dayButton.setOpaque(true); 
+                dayButton.setContentAreaFilled(true); 
+                dayButton.setBorder(BorderFactory.createEmptyBorder(2,2,2,2)); 
+
+                if (dayText == null || dayText.isEmpty() || !dayButton.isEnabled()) { 
+                    dayButton.setBackground(emptyDayBg);
+                } else {
+                    dayButton.setBackground(defaultMonthDayBg);
+                }
+            }
+        }
+        dayPanel.repaint();
+    }
+
+    private void atualizarVisualizacaoCalendario() {
+        if (calendarioView == null || calendarioView.getDayChooser() == null || calendarioView.getDayChooser().getDayPanel() == null) return;
+
+        JDayChooser dayChooser = calendarioView.getDayChooser();
+        JPanel dayPanel = dayChooser.getDayPanel();
+        Component[] components = dayPanel.getComponents();
+
+        // Cores padrão para os dias (você já as tem definidas)
+        Color defaultMonthDayBg = USAR_TEMA_ESCURO ? new Color(50,50,50) : new Color(230,230,230);
+        Color defaultDayFg = USAR_TEMA_ESCURO ? COR_TEXTO_ESCURO : Color.BLACK;
+        Color sundayFg = USAR_TEMA_ESCURO ? new Color(255, 255, 255) : new Color(0, 0, 0); // Ajustar cor do domingo
+        Color todayBorderColor = getCorAcentoPrimaria(); 
+        Color emptyDayBg = dayChooser.getBackground(); 
+
+        // Cores de status (você já as tem)
+        Color corCumpridoTotal = USAR_TEMA_ESCURO ? new Color(40, 110, 50) : new Color(180, 255, 180);
+        Color corCumpridoParcial = USAR_TEMA_ESCURO ? new Color(110, 90, 30) : new Color(255, 230, 170);
+        Color corNaoCumprido = USAR_TEMA_ESCURO ? new Color(110, 50, 50) : new Color(255, 190, 190);
+        Color corSemHabitosAgendados = USAR_TEMA_ESCURO ? new Color(55,55,65) : new Color(225,225,235); // Cor sutil para dias sem hábitos
+
+
+        LocalDate todayLogic = getDataAtualParaLogica();
+        int currentDisplayMonth = calendarioView.getCalendar().get(java.util.Calendar.MONTH); 
+        int currentDisplayYear = calendarioView.getCalendar().get(java.util.Calendar.YEAR);
+
+        for (Component comp : components) {
+            if (comp instanceof JButton) {
+                JButton dayButton = (JButton) comp;
+                dayButton.setOpaque(true);
+                dayButton.setContentAreaFilled(true);
+                dayButton.setBorder(BorderFactory.createEmptyBorder(2,2,2,2)); 
+
+                String dayText = dayButton.getText();
+                if (dayText == null || dayText.isEmpty() || !dayButton.isEnabled()) {
+                    dayButton.setBackground(emptyDayBg); 
+                    dayButton.setForeground(dayChooser.getForeground()); 
+                    continue;
+                }
+                try {
+                    int dayOfMonth = Integer.parseInt(dayText);
+                    LocalDate buttonDate = LocalDate.of(currentDisplayYear, currentDisplayMonth + 1, dayOfMonth);
+                    
+                    // Começa com a cor padrão
+                    dayButton.setBackground(defaultMonthDayBg); 
+                    dayButton.setForeground(defaultDayFg); 
+
+                    String status = statusDiasCalendario.get(buttonDate);
+                    if (status != null) {
+                        switch (status) {
+                            case "CUMPRIDO_TOTAL": dayButton.setBackground(corCumpridoTotal); break;
+                            case "CUMPRIDO_PARCIAL": dayButton.setBackground(corCumpridoParcial); break;
+                            case "NAO_CUMPRIDO": dayButton.setBackground(corNaoCumprido); break;
+                            case "SEM_HABITOS_AGENDADOS": // NOVO CASE
+                                dayButton.setBackground(corSemHabitosAgendados); // Ou defaultMonthDayBg
+                                break;
+                            default:
+                                dayButton.setBackground(defaultMonthDayBg); // Caso algum status desconhecido
+                                break;
+                        }
+                    }
+                    
+                    // Destaque para o dia atual (todayLogic)
+                    if (buttonDate.equals(todayLogic)) { 
+                        dayButton.setBorder(new LineBorder(todayBorderColor, 2)); 
+                        // Se for hoje e não tiver um status de cor forte, pode dar um leve destaque no fundo
+                        if (status == null || status.equals("SEM_HABITOS_AGENDADOS")) {
+                           if(dayButton.getBackground().equals(defaultMonthDayBg) || dayButton.getBackground().equals(corSemHabitosAgendados) ) {
+                               dayButton.setBackground(USAR_TEMA_ESCURO ? new Color(65,65,95) : new Color(200,200,235)); 
+                           }
+                        }
+                    }
+
+                    // Destaque para domingos
+                    java.util.Calendar tempCal = java.util.Calendar.getInstance();
+                    tempCal.set(currentDisplayYear, currentDisplayMonth, dayOfMonth);
+                    if(tempCal.get(java.util.Calendar.DAY_OF_WEEK) == java.util.Calendar.SUNDAY){
+                        dayButton.setForeground(sundayFg);
+                    }
+                } catch (NumberFormatException | java.time.DateTimeException ex) {
+                     dayButton.setBackground(emptyDayBg);
+                     dayButton.setForeground(dayChooser.getForeground());
+                }
+            }
+        }
+        dayPanel.revalidate();
+        dayPanel.repaint();
+    }
+    
+    // Em MainFrame.java
+private void loadObjetivos() {
+    if (usuarioIdAtual == -1 || objetivosListModel == null || objetivoService == null) { // Verifique se objetivoService está inicializado
+        if (objetivosListModel != null) objetivosListModel.clear();
+        atualizarEstadoBotoesObjetivo();
+        return;
+    }
+    objetivosListModel.clear();
+    try {
+        // SUBSTITUIR A SIMULAÇÃO PELA CHAMADA REAL AO SERVIÇO:
+        List<Objetivo> objetivosDoBanco = objetivoService.getObjetivosDoUsuario(this.usuarioIdAtual);
+
+        if (objetivosDoBanco != null && !objetivosDoBanco.isEmpty()) {
+            objetivosDoBanco.sort(
+                Comparator.comparing(Objetivo::isConcluido)
+                          .thenComparing(Objetivo::getDataMeta, Comparator.nullsLast(Comparator.naturalOrder())) // Ordenar por data meta
+                          .thenComparing(Objetivo::getNome, String.CASE_INSENSITIVE_ORDER)
+            );
+            objetivosDoBanco.forEach(objetivosListModel::addElement);
+        } else if (usuarioIdAtual != -1) { 
+            Objetivo placeholder = new Objetivo(0, "Nenhum objetivo cadastrado.", "");
+            // O construtor de Objetivo pode precisar ser ajustado se o ID 0 não for permitido
+            // ou use um construtor que não exija ID para placeholders, ou trate o ID 0 especialmente no renderer.
+            // Para simplificar, vou assumir que seu construtor Objetivo(int, String, String) existe e é adequado.
+            // Ou, se o construtor principal exige usuarioId:
+            // Objetivo placeholder = new Objetivo(this.usuarioIdAtual, "Nenhum objetivo cadastrado.", "Clique em '+' para adicionar!");
+            // placeholder.setId(0); // Identificador especial para placeholder
+            objetivosListModel.addElement(placeholder);
+        }
+
+    } catch (PersistenceException e) { 
+        JOptionPane.showMessageDialog(this, "Erro de persistência ao carregar objetivos: " + e.getMessage(), "Erro Objetivos", JOptionPane.ERROR_MESSAGE);
+        e.printStackTrace();
+        Objetivo erroPlaceholder = new Objetivo(0, "Erro ao carregar objetivos.", "Verifique o console.");
+        // erroPlaceholder.setId(0);
+        objetivosListModel.addElement(erroPlaceholder);
+    } catch (Exception e) { 
+        JOptionPane.showMessageDialog(this, "Erro inesperado ao carregar objetivos: " + e.getMessage(), "Erro Objetivos", JOptionPane.ERROR_MESSAGE);
+        e.printStackTrace();
+        Objetivo erroPlaceholder = new Objetivo(0, "Erro inesperado.", "Verifique o console.");
+        // erroPlaceholder.setId(0);
+        objetivosListModel.addElement(erroPlaceholder);
+    }
+    atualizarEstadoBotoesObjetivo();
+}
+
+    // Em MainFrame.java
+private void abrirDialogoAddObjetivo() {
+    if (usuarioIdAtual == -1 || objetivoService == null) {
+         JOptionPane.showMessageDialog(this, "Faça login para gerenciar objetivos ou serviço não inicializado.", "Aviso", JOptionPane.WARNING_MESSAGE);
+        return;
+    }
+    
+    AddObjetivoDialog dialog = new AddObjetivoDialog(this, true, objetivoService, usuarioIdAtual, USAR_TEMA_ESCURO);
+    dialog.setVisible(true);
+
+    if (dialog.isObjetivoAdicionadoComSucesso()) {
+        JOptionPane.showMessageDialog(this, "Objetivo '" + dialog.getNovoObjetivoAdicionado().getNome() + "' adicionado com sucesso!", "Objetivo Adicionado", JOptionPane.INFORMATION_MESSAGE);
+        loadObjetivos(); // Recarrega a lista de objetivos
+    }
+}
+
+    // Em MainFrame.java
+private void abrirDialogoEditObjetivo() {
+    Objetivo objSelecionado = objetivosJList.getSelectedValue();
+    if (usuarioIdAtual == -1 || objetivoService == null) {
+        JOptionPane.showMessageDialog(this, "Faça login para gerenciar objetivos ou serviço não inicializado.", "Aviso", JOptionPane.WARNING_MESSAGE);
+        return;
+    }
+    if (objSelecionado == null || objSelecionado.getId() == 0) { 
+         JOptionPane.showMessageDialog(this, "Selecione um objetivo válido para editar.", "Nenhum Objetivo Selecionado", JOptionPane.WARNING_MESSAGE);
+         return;
+    }
+
+    EditObjetivoDialog dialog = new EditObjetivoDialog(this, true, objetivoService, objSelecionado, USAR_TEMA_ESCURO);
+    dialog.setVisible(true);
+
+    if (dialog.isObjetivoAtualizadoComSucesso()) {
+        JOptionPane.showMessageDialog(this, "Objetivo '" + dialog.getObjetivoEditado().getNome() + "' atualizado com sucesso!", "Objetivo Atualizado", JOptionPane.INFORMATION_MESSAGE);
+        loadObjetivos(); // Recarrega a lista de objetivos
+    }
+}
+    // Em MainFrame.java
+private void excluirObjetivoSelecionado() {
+    Objetivo objSelecionado = objetivosJList.getSelectedValue();
+    if (usuarioIdAtual == -1 || objetivoService == null) {
+        JOptionPane.showMessageDialog(this, "Faça login para gerenciar objetivos ou serviço não inicializado.", "Aviso", JOptionPane.WARNING_MESSAGE);
+        return;
+    }
+    if (objSelecionado == null || objSelecionado.getId() == 0) { 
+         JOptionPane.showMessageDialog(this, "Selecione um objetivo válido para excluir.", "Nenhum Objetivo Selecionado", JOptionPane.WARNING_MESSAGE);
+         return;
+    }
+
+    int confirm = JOptionPane.showConfirmDialog(this, 
+        "Tem certeza que deseja excluir o objetivo '" + objSelecionado.getNome() + "'?\nEsta ação também removerá quaisquer vínculos com hábitos.", 
+        "Confirmar Exclusão", 
+        JOptionPane.YES_NO_OPTION, 
+        JOptionPane.WARNING_MESSAGE);
+    
+    if (confirm == JOptionPane.YES_OPTION) {
+        try {
+            boolean deletado = objetivoService.deleteObjetivo(objSelecionado.getId(), this.usuarioIdAtual);
+            if (deletado) {
+                JOptionPane.showMessageDialog(this, "Objetivo '" + objSelecionado.getNome() + "' excluído com sucesso.", "Objetivo Excluído", JOptionPane.INFORMATION_MESSAGE);
+                loadObjetivos(); // Recarrega a lista
+            } else {
+                JOptionPane.showMessageDialog(this, "Não foi possível excluir o objetivo. Pode já ter sido removido ou ocorreu um erro.", "Erro na Exclusão", JOptionPane.ERROR_MESSAGE);
+            }
         } catch (PersistenceException pe) {
-            JOptionPane.showMessageDialog(this, "Erro de persistência ao marcar o hábito: " + pe.getMessage(), "Erro de Backend", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Erro de persistência ao excluir o objetivo: " + pe.getMessage(), "Erro de Backend", JOptionPane.ERROR_MESSAGE);
+            pe.printStackTrace();
         } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Ocorreu um erro inesperado ao marcar o hábito: " + ex.getMessage(), "Erro Inesperado", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Ocorreu um erro inesperado ao excluir o objetivo: " + ex.getMessage(), "Erro Inesperado", JOptionPane.ERROR_MESSAGE);
             ex.printStackTrace();
         }
     }
+}
+
+    // Em MainFrame.java
+private void toggleConclusaoObjetivoSelecionado() {
+    Objetivo objSelecionado = objetivosJList.getSelectedValue();
+     if (usuarioIdAtual == -1 || objetivoService == null) {
+        JOptionPane.showMessageDialog(this, "Faça login para gerenciar objetivos ou serviço não inicializado.", "Aviso", JOptionPane.WARNING_MESSAGE);
+        return;
+    }
+    if (objSelecionado == null || objSelecionado.getId() == 0 ) { 
+         JOptionPane.showMessageDialog(this, "Selecione um objetivo válido para marcar/desmarcar.", "Nenhum Objetivo Selecionado", JOptionPane.WARNING_MESSAGE);
+         return;
+    }
+    
+    try {
+        boolean novoStatusConcluido = !objSelecionado.isConcluido(); // Determina o status antes da chamada
+        boolean sucesso = objetivoService.toggleConclusaoObjetivo(objSelecionado.getId(), this.usuarioIdAtual);
+        
+        if (sucesso) {
+            String msg = "Objetivo '" + objSelecionado.getNome() + 
+                         (novoStatusConcluido ? "' marcado como concluído!" : "' desmarcado como concluído!");
+            JOptionPane.showMessageDialog(this, msg, "Status do Objetivo", JOptionPane.INFORMATION_MESSAGE);
+            loadObjetivos(); // Recarrega e reordena a lista
+            
+            // Tenta reselecionar o item (opcional, pode ser complicado se a ordem mudar muito)
+            // Para isso, você precisaria encontrar o objeto na nova lista pelo ID e setar o índice.
+            // Exemplo simples de reseleção (pode não ser perfeito):
+            // final int idParaSelecionar = objSelecionado.getId();
+            // SwingUtilities.invokeLater(() -> {
+            //     for (int i = 0; i < objetivosListModel.getSize(); i++) {
+            //         if (objetivosListModel.getElementAt(i).getId() == idParaSelecionar) {
+            //             objetivosJList.setSelectedIndex(i);
+            //             objetivosJList.ensureIndexIsVisible(i);
+            //             break;
+            //         }
+            //     }
+            // });
+
+        } else {
+            JOptionPane.showMessageDialog(this, "Não foi possível alterar o status do objetivo.", "Erro", JOptionPane.ERROR_MESSAGE);
+        }
+    } catch (ValidationException ve) {
+        JOptionPane.showMessageDialog(this, "Erro de validação: " + ve.getMessage(), "Erro de Validação", JOptionPane.WARNING_MESSAGE);
+    } catch (PersistenceException pe) {
+        JOptionPane.showMessageDialog(this, "Erro de persistência: " + pe.getMessage(), "Erro de Backend", JOptionPane.ERROR_MESSAGE);
+        pe.printStackTrace();
+    } catch (Exception ex) {
+        JOptionPane.showMessageDialog(this, "Ocorreu um erro inesperado: " + ex.getMessage(), "Erro Inesperado", JOptionPane.ERROR_MESSAGE);
+        ex.printStackTrace();
+    }
+}
+    
 
     public static void main(String[] args) {
-        // Para um tema escuro mais robusto e consistente, considere usar FlatLaf:
-        // try {
-        // UIManager.setLookAndFeel(new com.formdev.flatlaf.FlatDarkLaf());
-        // } catch (Exception ex) {
-        // System.err.println("Failed to initialize FlatLaf Dark LaF");
-        // }
-
         SwingUtilities.invokeLater(() -> {
             MainFrame frame = new MainFrame();
             frame.setVisible(true);
