@@ -14,7 +14,7 @@ import java.awt.*;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Date; // Para setar no JDateChooser
+import java.util.Date; 
 
 public class EditObjetivoDialog extends JDialog {
     private JTextField nomeField;
@@ -43,7 +43,7 @@ public class EditObjetivoDialog extends JDialog {
     }
 
     private void initComponents() {
-        // Cores e Fontes (similar ao AddObjetivoDialog)
+        
         Color corFundoDialog = usarTemaEscuro ? new Color(45, 45, 45) : new Color(240, 240, 240);
         Color corTextoLabel = usarTemaEscuro ? new Color(220, 220, 220) : Color.BLACK;
         Color corFundoCampo = usarTemaEscuro ? new Color(60, 60, 60) : Color.WHITE;
@@ -61,7 +61,7 @@ public class EditObjetivoDialog extends JDialog {
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        // Nome
+        
         JLabel nomeLabel = new JLabel("Nome do Objetivo:");
         nomeLabel.setFont(fonteLabel);
         nomeLabel.setForeground(corTextoLabel);
@@ -76,7 +76,7 @@ public class EditObjetivoDialog extends JDialog {
         gbc.gridx = 1; gbc.gridy = 0; gbc.weightx = 1.0;
         formPanel.add(nomeField, gbc);
 
-        // Descrição
+        
         JLabel descricaoLabel = new JLabel("Descrição:");
         descricaoLabel.setFont(fonteLabel);
         descricaoLabel.setForeground(corTextoLabel);
@@ -95,9 +95,9 @@ public class EditObjetivoDialog extends JDialog {
         descScrollPane.setOpaque(false);
         gbc.gridx = 1; gbc.gridy = 1; gbc.fill = GridBagConstraints.BOTH; gbc.weighty = 1.0;
         formPanel.add(descScrollPane, gbc);
-        gbc.weighty = 0; gbc.fill = GridBagConstraints.HORIZONTAL; // Resetar
+        gbc.weighty = 0; gbc.fill = GridBagConstraints.HORIZONTAL; 
 
-        // Data Meta
+        
         JLabel dataMetaLabel = new JLabel("Data Meta (Opcional):");
         dataMetaLabel.setFont(fonteLabel);
         dataMetaLabel.setForeground(corTextoLabel);
@@ -121,7 +121,7 @@ public class EditObjetivoDialog extends JDialog {
 
         add(formPanel, BorderLayout.CENTER);
 
-        // Botões
+        
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         buttonPanel.setOpaque(false);
 
@@ -155,7 +155,7 @@ public class EditObjetivoDialog extends JDialog {
         nomeField.setText(objetivoParaEditar.getNome());
         descricaoArea.setText(objetivoParaEditar.getDescricao());
         if (objetivoParaEditar.getDataMeta() != null) {
-            // Convert LocalDate to java.util.Date for JDateChooser
+            
             Date dataMetaUtil = Date.from(objetivoParaEditar.getDataMeta().atStartOfDay(ZoneId.systemDefault()).toInstant());
             dataMetaChooser.setDate(dataMetaUtil);
         } else {
@@ -182,9 +182,9 @@ public class EditObjetivoDialog extends JDialog {
         objetivoParaEditar.setDataMeta(dataMeta);
 
         try {
-            // A lista de IDs de hábitos vinculados seria obtida de outro componente na UI, se houver.
-            // Para este exemplo, passarei uma lista vazia ou os IDs existentes se você os carregar.
-            objetivoService.updateObjetivo(objetivoParaEditar, new ArrayList<>()); // ou objetivoService.getHabitoIdsForObjetivo(objetivoParaEditar.getId())
+            
+            
+            objetivoService.updateObjetivo(objetivoParaEditar, new ArrayList<>()); 
             objetivoAtualizadoComSucesso = true;
             dispose();
         } catch (ValidationException ve) {
@@ -202,7 +202,7 @@ public class EditObjetivoDialog extends JDialog {
         return objetivoAtualizadoComSucesso;
     }
 
-    public Objetivo getObjetivoEditado() { // Para retornar o objeto atualizado se necessário
+    public Objetivo getObjetivoEditado() { 
         return objetivoParaEditar;
     }
 }

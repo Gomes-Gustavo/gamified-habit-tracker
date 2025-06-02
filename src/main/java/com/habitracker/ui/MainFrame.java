@@ -1,18 +1,18 @@
 package com.habitracker.ui;
 
-// Removido: import com.habitracker.backend.ConquistaService;
+
 import com.habitracker.backend.HabitService;
-// DAOs para Objetivos serão necessários
-// import com.habitracker.database.ObjetivoDAO; 
-import com.habitracker.database.HabitDAO;       // Não é ideal usar DAOs diretamente na UI, mas para detalhes pode ser
-import com.habitracker.database.ProgressoDiarioDAO; // Usado para o painel de detalhes de hábitos por dia (se reintroduzido) ou lógica de objetivos
+
+
+import com.habitracker.database.HabitDAO;       
+import com.habitracker.database.ProgressoDiarioDAO; 
 import com.habitracker.database.UsuarioDAO;
 import com.habitracker.database.ObjetivoDAO;
-// Removido: import com.habitracker.model.Conquista;
+
 import com.habitracker.model.Habit;
 import com.habitracker.model.Usuario;
 import com.habitracker.model.ProgressoDiario;
-import com.habitracker.model.Objetivo; // NOVO MODEL
+import com.habitracker.model.Objetivo; 
 import com.habitracker.serviceapi.HabitTrackerServiceAPI;
 import com.habitracker.serviceapi.dto.FeedbackMarcacaoDTO;
 import com.habitracker.serviceapi.exceptions.HabitNotFoundException;
@@ -26,17 +26,17 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.border.LineBorder;
 import javax.swing.border.TitledBorder;
 import java.awt.*;
-// import java.awt.event.ActionEvent; // Não usado diretamente se usar lambdas
-// import java.awt.event.ActionListener; // Não usado diretamente se usar lambdas
+
+
 import java.beans.PropertyChangeListener;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Calendar; // Usado apenas em atualizarVisualizacaoCalendario para domingos
+import java.util.Calendar; 
 import java.util.Collections;
-import java.util.Comparator; // Para ordenar objetivos
+import java.util.Comparator; 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -76,7 +76,7 @@ public class MainFrame extends JFrame {
 
     private final boolean USAR_TEMA_ESCURO = true;
 
-    // --- CORES e FONTES ---
+    
     private final Color COR_FUNDO_GERAL_CLARO = new Color(240, 240, 240);
     private final Color COR_PAINEL_CLARO = new Color(225, 225, 225);
     private final Color COR_TEXTO_PADRAO_CLARO = new Color(30, 30, 30);
@@ -105,7 +105,7 @@ public class MainFrame extends JFrame {
     private final Font FONTE_TEXTO_GERAL = new Font("Segoe UI", Font.PLAIN, 16);
     private final Font FONTE_BOTAO = new Font(Font.SANS_SERIF, Font.BOLD, 15);
     private final Font FONTE_LISTA = new Font("Segoe UI", Font.PLAIN, 16);
-    // private final Font FONTE_OBJETIVOS_LISTA = new Font("Segoe UI", Font.PLAIN, 14); // Fonte definida no renderer
+    
 
     private List<ProgressoDiario> progressoDoMesAtual;
     private List<Habit> habitosDoUsuarioAtual; 
@@ -269,7 +269,7 @@ public class MainFrame extends JFrame {
 
     public void setDataSimuladaParaTeste(LocalDate dataSimulada) {
         this.dataSimuladaHoje = dataSimulada;
-        // Ao simular uma nova data, a data de contexto deve ser essa nova data simulada.
+        
         setDataContextoHabitos(this.dataSimuladaHoje); 
         System.out.println("Data atual para lógica do app simulada para: " + this.dataSimuladaHoje);
         System.out.println("Contexto de hábitos atualizado para (via simulação): " + this.dataContextoHabitos);
@@ -354,7 +354,7 @@ public class MainFrame extends JFrame {
         if (!idValido) {
             this.usuarioIdAtual = -1;
         }
-        // Após o login, a data de contexto inicial é a data atual (simulada ou real)
+        
         setDataContextoHabitos(getDataAtualParaLogica()); 
     }
 
@@ -412,11 +412,11 @@ public class MainFrame extends JFrame {
         refreshButton.addActionListener(e -> {
             if (usuarioIdAtual != -1) {
                 System.out.println("Recarregando dados para usuário ID: " + usuarioIdAtual);
-                // Ao recarregar, geralmente voltamos para a data "hoje" da lógica do app
+                
                 setDataContextoHabitos(getDataAtualParaLogica()); 
-                // Os métodos dentro de setDataContextoHabitos já cuidam de atualizar a UI
-                atualizarDisplayUsuario(); // Recarrega pontos do usuário
-                loadObjetivos(); // Recarrega objetivos
+                
+                atualizarDisplayUsuario(); 
+                loadObjetivos(); 
                 JOptionPane.showMessageDialog(this, "Dados recarregados.", "Informação", JOptionPane.INFORMATION_MESSAGE);
             } else {
                 JOptionPane.showMessageDialog(this, "Nenhum usuário logado para recarregar dados.", "Aviso", JOptionPane.WARNING_MESSAGE);
@@ -431,7 +431,7 @@ public class MainFrame extends JFrame {
             if (dataStr != null) {
                 try {
                     LocalDate dataSimuladaInput = LocalDate.parse(dataStr);
-                    setDataSimuladaParaTeste(dataSimuladaInput); // Este método agora chama setDataContextoHabitos
+                    setDataSimuladaParaTeste(dataSimuladaInput); 
                 } catch (java.time.format.DateTimeParseException ex) {
                     JOptionPane.showMessageDialog(this, "Formato de data inválido! Use AAAA-MM-DD.", "Erro de Formato", JOptionPane.ERROR_MESSAGE);
                 }
@@ -526,7 +526,7 @@ public class MainFrame extends JFrame {
         JButton btnIrParaHoje = createStyledButton("Ir para Hoje"); 
         btnIrParaHoje.setFont(new Font("Segoe UI", Font.BOLD, 13)); 
         btnIrParaHoje.addActionListener(e -> {
-            setDataContextoHabitos(LocalDate.now()); // "Hoje" real
+            setDataContextoHabitos(LocalDate.now()); 
         });
         topoCalendarioPanel.add(btnIrParaHoje, BorderLayout.EAST); 
         calendarioPanel.add(topoCalendarioPanel, BorderLayout.NORTH);
@@ -618,21 +618,21 @@ public class MainFrame extends JFrame {
     
     private void setDataContextoHabitos(LocalDate novaData) {
         if (this.dataContextoHabitos != null && this.dataContextoHabitos.equals(novaData)) {
-             // Se a data do calendário JÁ é a novaData, não precisa fazer nada aqui para o calendário.
-             // Apenas garante que o título do painel de hábitos esteja correto.
+             
+             
              String tituloEsperado = "Hábitos para " + novaData.format(DateTimeFormatter.ofPattern("dd/MM/yy"));
              if (habitPanelTitledBorder != null && !habitPanelTitledBorder.getTitle().equals(tituloEsperado)) {
                 habitPanelTitledBorder.setTitle(tituloEsperado);
                 if(habitPanel!=null) habitPanel.repaint();
              }
-            return; // Evita recargas desnecessárias se a data não mudou de fato.
+            return; 
         }
         
         this.dataContextoHabitos = novaData;
-        // System.out.println("Contexto de hábitos atualizado para: " + this.dataContextoHabitos);
+        
 
         if (calendarioView != null) {
-            // Verifica se a data no JCalendar é diferente antes de chamar setDate para evitar loops de eventos
+            
             java.util.Date currentDateInCalendar = calendarioView.getDate();
             LocalDate localDateInCalendar = null;
             if (currentDateInCalendar != null) {
@@ -648,13 +648,13 @@ public class MainFrame extends JFrame {
             habitPanel.repaint();
         }
         
-        // Atualizar dados apenas se houver um usuário logado
+        
         if (this.usuarioIdAtual != -1) {
             loadHabits(); 
             carregarDadosCalendario();
-            // Não recarregar objetivos aqui, a menos que eles dependam diretamente da data de contexto
+            
         } else {
-            // Se não houver usuário, limpar e atualizar o visual do calendário para a nova data
+            
             if(habitListModel!=null) habitListModel.clear();
             limparCoresCalendario();
             atualizarVisualizacaoCalendario();
@@ -711,7 +711,7 @@ public class MainFrame extends JFrame {
     private void atualizarEstadoBotoesObjetivo() {
         boolean isUserLoaded = (this.usuarioIdAtual != -1);
         Objetivo selectedObjetivo = (objetivosJList != null) ? objetivosJList.getSelectedValue() : null;
-        boolean isObjetivoSelected = isUserLoaded && selectedObjetivo != null && selectedObjetivo.getId() != 0; // Não permitir ação em placeholders
+        boolean isObjetivoSelected = isUserLoaded && selectedObjetivo != null && selectedObjetivo.getId() != 0; 
 
         if (btnAddObjetivo != null) btnAddObjetivo.setEnabled(isUserLoaded);
         if (btnEditObjetivo != null) btnEditObjetivo.setEnabled(isObjetivoSelected);
@@ -735,11 +735,11 @@ public class MainFrame extends JFrame {
         if (habitListModel == null) habitListModel = new DefaultListModel<>();
         habitListModel.clear();
 
-        // 1. Busca todos os hábitos do usuário (o DAO já deve carregar os dias da semana para cada um)
+        
         this.habitosDoUsuarioAtual = habitService.getHabitsByUserId(this.usuarioIdAtual);
         if (this.habitosDoUsuarioAtual == null) this.habitosDoUsuarioAtual = new ArrayList<>();
 
-        // 2. Filtra os hábitos para exibir apenas os relevantes para dataContextoHabitos
+        
         final DayOfWeek diaDaSemanaContexto = dataContextoHabitos.getDayOfWeek();
         List<Habit> habitosParaExibirNaLista = this.habitosDoUsuarioAtual.stream()
             .filter(h -> {
@@ -747,20 +747,20 @@ public class MainFrame extends JFrame {
                     return false; 
                 }
                 Set<DayOfWeek> diasProgramados = h.getDiasDaSemana();
-                // Se for obrigatório selecionar dias ao criar/editar, diasProgramados nunca será nulo ou vazio
-                // para hábitos válidos. Se for opcional, decida o comportamento.
-                // Assumindo que, se vazio, não aparece.
+                
+                
+                
+                
                 if (diasProgramados == null || diasProgramados.isEmpty()) {
-                    // Para hábitos antigos sem dias definidos, você pode querer que eles apareçam todos os dias
-                    // ou não apareçam até serem editados. Para a nova funcionalidade, não aparecer é mais consistente.
-                    // Se quiser que apareçam todos os dias se não especificado: return true;
+                    
+                    
                     return false; 
                 }
                 return diasProgramados.contains(diaDaSemanaContexto);
             })
             .collect(Collectors.toList());
 
-        // 3. Processa os hábitos filtrados (status, sequência) e adiciona ao modelo da lista
+        
         if (!habitosParaExibirNaLista.isEmpty()) {
             List<Integer> habitIdsParaStatus = habitosParaExibirNaLista.stream().map(Habit::getId).collect(Collectors.toList());
             Map<Integer, Boolean> statusHabitosNoContexto = habitService.getStatusHabitosPorDia(this.usuarioIdAtual, habitIdsParaStatus, dataContextoHabitos);
@@ -797,7 +797,7 @@ public class MainFrame extends JFrame {
             for (Habit habit : habitosParaExibirNaLista) {
                 habitListModel.addElement(habit);
             }
-        } else if (usuarioIdAtual != -1) { // Lista de hábitos filtrados vazia
+        } else if (usuarioIdAtual != -1) { 
             Habit placeholder = new Habit();
             placeholder.setId(0); 
             placeholder.setName("Nenhum hábito agendado para este dia.");
@@ -840,7 +840,7 @@ public class MainFrame extends JFrame {
             int metaProximoNivel = ((pontos / 100) + 1) * 100;
             if (pontos == 0) metaProximoNivel = 100;
             else if (pontos % 100 == 0 && pontos > 0) metaProximoNivel = pontos + 100; 
-            else if (metaProximoNivel <= pontos) metaProximoNivel = ((pontos / 100) + 2) * 100; // Ajuste se já ultrapassou
+            else if (metaProximoNivel <= pontos) metaProximoNivel = ((pontos / 100) + 2) * 100; 
 
             pontosProgressBar.setMaximum(metaProximoNivel);
             pontosProgressBar.setValue(pontos);
@@ -940,7 +940,7 @@ public class MainFrame extends JFrame {
         
         LocalDate dataParaMarcar = this.dataContextoHabitos; 
         
-        // System.out.println("DEBUG: Tentando marcar hábito '" + selectedHabit.getName() + "' para a DATA: " + dataParaMarcar);
+        
 
         if (dataParaMarcar.isAfter(getDataAtualParaLogica())) { 
              JOptionPane.showMessageDialog(this, "Não é possível marcar um hábito como feito para uma data futura.", "Data Inválida", JOptionPane.WARNING_MESSAGE);
@@ -962,7 +962,7 @@ public class MainFrame extends JFrame {
             carregarDadosCalendario(); 
             
             if (feedback.getPontosGanhosNestaMarcacao() > 0) {
-                 loadObjetivos(); // Recarrega objetivos se pontos foram ganhos (placeholder para lógica de interdependência)
+                 loadObjetivos(); 
             }
 
         } catch (UserNotFoundException | HabitNotFoundException e) {
@@ -978,18 +978,18 @@ public class MainFrame extends JFrame {
     
     private void carregarDadosCalendario() {
         if (usuarioIdAtual == -1 || calendarioView == null || habitService == null) {
-            limparCoresCalendario(); // Limpa as cores mas não necessariamente repinta o calendário com os botões
-            if(calendarioView != null) atualizarVisualizacaoCalendario(); // Força a repintura com o estado limpo
+            limparCoresCalendario(); 
+            if(calendarioView != null) atualizarVisualizacaoCalendario(); 
             return;
         }
-        java.util.Calendar cal = calendarioView.getCalendar(); // Mês/Ano atualmente visualizado no JCalendar
+        java.util.Calendar cal = calendarioView.getCalendar(); 
         int ano = cal.get(java.util.Calendar.YEAR);
-        int mes = cal.get(java.util.Calendar.MONTH) + 1; // JCalendar usa mês 0-11
+        int mes = cal.get(java.util.Calendar.MONTH) + 1; 
 
         try {
-            // this.habitosDoUsuarioAtual já deve estar carregado. 
-            // Se não estiver, ou se a lógica de atualização for diferente, carregue aqui.
-            // Por consistência, vamos assumir que this.habitosDoUsuarioAtual está atualizado.
+            
+            
+            
             if (this.habitosDoUsuarioAtual == null) { 
                  this.habitosDoUsuarioAtual = habitService.getHabitsByUserId(this.usuarioIdAtual);
                  if (this.habitosDoUsuarioAtual == null) this.habitosDoUsuarioAtual = new ArrayList<>();
@@ -999,7 +999,7 @@ public class MainFrame extends JFrame {
             if (this.progressoDoMesAtual == null) {
                 this.progressoDoMesAtual = new ArrayList<>();
             }
-            this.statusDiasCalendario.clear(); // Limpa o mapa de status para o novo cálculo
+            this.statusDiasCalendario.clear(); 
 
             Map<LocalDate, List<ProgressoDiario>> progressosPorDataMap = this.progressoDoMesAtual.stream()
                 .collect(Collectors.groupingBy(ProgressoDiario::getDataRegistro));
@@ -1009,30 +1009,30 @@ public class MainFrame extends JFrame {
             LocalDate hojeLogicaApp = getDataAtualParaLogica();
 
             for (LocalDate dataSendoAvalidada = primeiroDiaDoMes; !dataSendoAvalidada.isAfter(ultimoDiaDoMes); dataSendoAvalidada = dataSendoAvalidada.plusDays(1)) {
-                final LocalDate diaFinalLoop = dataSendoAvalidada; // Data do calendário sendo processada
+                final LocalDate diaFinalLoop = dataSendoAvalidada; 
                 final DayOfWeek diaDaSemanaAtualLoop = diaFinalLoop.getDayOfWeek();
 
-                // Filtrar hábitos que são relevantes para ESTE dia específico do calendário
+                
                 List<Habit> habitosAgendadosParaEsteDia = this.habitosDoUsuarioAtual.stream()
                     .filter(h -> h.getCreationDate() != null && !h.getCreationDate().isAfter(diaFinalLoop))
                     .filter(h -> {
                         Set<DayOfWeek> diasProgramados = h.getDiasDaSemana();
                         if (diasProgramados == null || diasProgramados.isEmpty()) {
-                            return false; // Não agendado se não houver dias definidos
+                            return false; 
                         }
                         return diasProgramados.contains(diaDaSemanaAtualLoop);
                     })
                     .collect(Collectors.toList());
                 
                 if (habitosAgendadosParaEsteDia.isEmpty()){
-                    // Se não há NENHUM hábito agendado para este dia da semana,
-                    // não o marcamos como NAO_CUMPRIDO. Ele ficará com a cor padrão.
-                    // Você pode adicionar um status "SEM_HABITOS_AGENDADOS" se quiser uma cor diferente.
-                    statusDiasCalendario.put(diaFinalLoop, "SEM_HABITOS_AGENDADOS"); // NOVO STATUS
+                    
+                    
+                    
+                    statusDiasCalendario.put(diaFinalLoop, "SEM_HABITOS_AGENDADOS"); 
                     continue; 
                 }
 
-                // Se chegou aqui, há hábitos agendados para este dia. Vamos verificar o progresso.
+                
                 List<ProgressoDiario> progressosDoDiaEspecifico = progressosPorDataMap.getOrDefault(diaFinalLoop, Collections.emptyList());
                 long totalHabitosAgendadosNoDia = habitosAgendadosParaEsteDia.size();
                 
@@ -1048,16 +1048,16 @@ public class MainFrame extends JFrame {
                     statusDiasCalendario.put(diaFinalLoop, "CUMPRIDO_TOTAL");
                 } else if (cumpridosDentreOsAgendados > 0) {
                     statusDiasCalendario.put(diaFinalLoop, "CUMPRIDO_PARCIAL");
-                } else { // Nenhum dos hábitos AGENDADOS foi cumprido
+                } else { 
                     if (diaFinalLoop.isBefore(hojeLogicaApp) || diaFinalLoop.isEqual(hojeLogicaApp)) {
                         statusDiasCalendario.put(diaFinalLoop, "NAO_CUMPRIDO");
                     }
-                    // Se for uma data futura com hábitos agendados mas não cumpridos,
-                    // não marcamos como NAO_CUMPRIDO ainda. O dia ficará com a cor padrão
-                    // (ou a cor de "SEM_HABITOS_AGENDADOS" se o filtro acima não fosse tão estrito,
-                    // mas como o filtro é estrito, ele só entra aqui se houver hábitos agendados).
+                    
+                    
+                    
+                    
                 }
-            } // Fim do loop pelos dias do mês
+            } 
             atualizarVisualizacaoCalendario();
 
         } catch (UserNotFoundException | PersistenceException e) {
@@ -1109,18 +1109,18 @@ public class MainFrame extends JFrame {
         JPanel dayPanel = dayChooser.getDayPanel();
         Component[] components = dayPanel.getComponents();
 
-        // Cores padrão para os dias (você já as tem definidas)
+        
         Color defaultMonthDayBg = USAR_TEMA_ESCURO ? new Color(50,50,50) : new Color(230,230,230);
         Color defaultDayFg = USAR_TEMA_ESCURO ? COR_TEXTO_ESCURO : Color.BLACK;
-        Color sundayFg = USAR_TEMA_ESCURO ? new Color(255, 255, 255) : new Color(0, 0, 0); // Ajustar cor do domingo
+        Color sundayFg = USAR_TEMA_ESCURO ? new Color(255, 255, 255) : new Color(0, 0, 0); 
         Color todayBorderColor = getCorAcentoPrimaria(); 
         Color emptyDayBg = dayChooser.getBackground(); 
 
-        // Cores de status (você já as tem)
+        
         Color corCumpridoTotal = USAR_TEMA_ESCURO ? new Color(40, 110, 50) : new Color(180, 255, 180);
         Color corCumpridoParcial = USAR_TEMA_ESCURO ? new Color(110, 90, 30) : new Color(255, 230, 170);
         Color corNaoCumprido = USAR_TEMA_ESCURO ? new Color(110, 50, 50) : new Color(255, 190, 190);
-        Color corSemHabitosAgendados = USAR_TEMA_ESCURO ? new Color(55,55,65) : new Color(225,225,235); // Cor sutil para dias sem hábitos
+        Color corSemHabitosAgendados = USAR_TEMA_ESCURO ? new Color(55,55,65) : new Color(225,225,235); 
 
 
         LocalDate todayLogic = getDataAtualParaLogica();
@@ -1144,7 +1144,7 @@ public class MainFrame extends JFrame {
                     int dayOfMonth = Integer.parseInt(dayText);
                     LocalDate buttonDate = LocalDate.of(currentDisplayYear, currentDisplayMonth + 1, dayOfMonth);
                     
-                    // Começa com a cor padrão
+                    
                     dayButton.setBackground(defaultMonthDayBg); 
                     dayButton.setForeground(defaultDayFg); 
 
@@ -1154,19 +1154,19 @@ public class MainFrame extends JFrame {
                             case "CUMPRIDO_TOTAL": dayButton.setBackground(corCumpridoTotal); break;
                             case "CUMPRIDO_PARCIAL": dayButton.setBackground(corCumpridoParcial); break;
                             case "NAO_CUMPRIDO": dayButton.setBackground(corNaoCumprido); break;
-                            case "SEM_HABITOS_AGENDADOS": // NOVO CASE
-                                dayButton.setBackground(corSemHabitosAgendados); // Ou defaultMonthDayBg
+                            case "SEM_HABITOS_AGENDADOS": 
+                                dayButton.setBackground(corSemHabitosAgendados); 
                                 break;
                             default:
-                                dayButton.setBackground(defaultMonthDayBg); // Caso algum status desconhecido
+                                dayButton.setBackground(defaultMonthDayBg); 
                                 break;
                         }
                     }
                     
-                    // Destaque para o dia atual (todayLogic)
+                    
                     if (buttonDate.equals(todayLogic)) { 
                         dayButton.setBorder(new LineBorder(todayBorderColor, 2)); 
-                        // Se for hoje e não tiver um status de cor forte, pode dar um leve destaque no fundo
+                        
                         if (status == null || status.equals("SEM_HABITOS_AGENDADOS")) {
                            if(dayButton.getBackground().equals(defaultMonthDayBg) || dayButton.getBackground().equals(corSemHabitosAgendados) ) {
                                dayButton.setBackground(USAR_TEMA_ESCURO ? new Color(65,65,95) : new Color(200,200,235)); 
@@ -1174,7 +1174,7 @@ public class MainFrame extends JFrame {
                         }
                     }
 
-                    // Destaque para domingos
+                    
                     java.util.Calendar tempCal = java.util.Calendar.getInstance();
                     tempCal.set(currentDisplayYear, currentDisplayMonth, dayOfMonth);
                     if(tempCal.get(java.util.Calendar.DAY_OF_WEEK) == java.util.Calendar.SUNDAY){
@@ -1190,33 +1190,32 @@ public class MainFrame extends JFrame {
         dayPanel.repaint();
     }
     
-    // Em MainFrame.java
+
 private void loadObjetivos() {
-    if (usuarioIdAtual == -1 || objetivosListModel == null || objetivoService == null) { // Verifique se objetivoService está inicializado
+    if (usuarioIdAtual == -1 || objetivosListModel == null || objetivoService == null) { 
         if (objetivosListModel != null) objetivosListModel.clear();
         atualizarEstadoBotoesObjetivo();
         return;
     }
     objetivosListModel.clear();
     try {
-        // SUBSTITUIR A SIMULAÇÃO PELA CHAMADA REAL AO SERVIÇO:
+        
         List<Objetivo> objetivosDoBanco = objetivoService.getObjetivosDoUsuario(this.usuarioIdAtual);
 
         if (objetivosDoBanco != null && !objetivosDoBanco.isEmpty()) {
             objetivosDoBanco.sort(
                 Comparator.comparing(Objetivo::isConcluido)
-                          .thenComparing(Objetivo::getDataMeta, Comparator.nullsLast(Comparator.naturalOrder())) // Ordenar por data meta
+                          .thenComparing(Objetivo::getDataMeta, Comparator.nullsLast(Comparator.naturalOrder())) 
                           .thenComparing(Objetivo::getNome, String.CASE_INSENSITIVE_ORDER)
             );
             objetivosDoBanco.forEach(objetivosListModel::addElement);
         } else if (usuarioIdAtual != -1) { 
             Objetivo placeholder = new Objetivo(0, "Nenhum objetivo cadastrado.", "");
-            // O construtor de Objetivo pode precisar ser ajustado se o ID 0 não for permitido
-            // ou use um construtor que não exija ID para placeholders, ou trate o ID 0 especialmente no renderer.
-            // Para simplificar, vou assumir que seu construtor Objetivo(int, String, String) existe e é adequado.
-            // Ou, se o construtor principal exige usuarioId:
-            // Objetivo placeholder = new Objetivo(this.usuarioIdAtual, "Nenhum objetivo cadastrado.", "Clique em '+' para adicionar!");
-            // placeholder.setId(0); // Identificador especial para placeholder
+            
+            
+            
+            
+            
             objetivosListModel.addElement(placeholder);
         }
 
@@ -1224,19 +1223,19 @@ private void loadObjetivos() {
         JOptionPane.showMessageDialog(this, "Erro de persistência ao carregar objetivos: " + e.getMessage(), "Erro Objetivos", JOptionPane.ERROR_MESSAGE);
         e.printStackTrace();
         Objetivo erroPlaceholder = new Objetivo(0, "Erro ao carregar objetivos.", "Verifique o console.");
-        // erroPlaceholder.setId(0);
+        
         objetivosListModel.addElement(erroPlaceholder);
     } catch (Exception e) { 
         JOptionPane.showMessageDialog(this, "Erro inesperado ao carregar objetivos: " + e.getMessage(), "Erro Objetivos", JOptionPane.ERROR_MESSAGE);
         e.printStackTrace();
         Objetivo erroPlaceholder = new Objetivo(0, "Erro inesperado.", "Verifique o console.");
-        // erroPlaceholder.setId(0);
+        
         objetivosListModel.addElement(erroPlaceholder);
     }
     atualizarEstadoBotoesObjetivo();
 }
 
-    // Em MainFrame.java
+    
 private void abrirDialogoAddObjetivo() {
     if (usuarioIdAtual == -1 || objetivoService == null) {
          JOptionPane.showMessageDialog(this, "Faça login para gerenciar objetivos ou serviço não inicializado.", "Aviso", JOptionPane.WARNING_MESSAGE);
@@ -1248,11 +1247,11 @@ private void abrirDialogoAddObjetivo() {
 
     if (dialog.isObjetivoAdicionadoComSucesso()) {
         JOptionPane.showMessageDialog(this, "Objetivo '" + dialog.getNovoObjetivoAdicionado().getNome() + "' adicionado com sucesso!", "Objetivo Adicionado", JOptionPane.INFORMATION_MESSAGE);
-        loadObjetivos(); // Recarrega a lista de objetivos
+        loadObjetivos(); 
     }
 }
 
-    // Em MainFrame.java
+    
 private void abrirDialogoEditObjetivo() {
     Objetivo objSelecionado = objetivosJList.getSelectedValue();
     if (usuarioIdAtual == -1 || objetivoService == null) {
@@ -1269,10 +1268,10 @@ private void abrirDialogoEditObjetivo() {
 
     if (dialog.isObjetivoAtualizadoComSucesso()) {
         JOptionPane.showMessageDialog(this, "Objetivo '" + dialog.getObjetivoEditado().getNome() + "' atualizado com sucesso!", "Objetivo Atualizado", JOptionPane.INFORMATION_MESSAGE);
-        loadObjetivos(); // Recarrega a lista de objetivos
+        loadObjetivos(); 
     }
 }
-    // Em MainFrame.java
+    
 private void excluirObjetivoSelecionado() {
     Objetivo objSelecionado = objetivosJList.getSelectedValue();
     if (usuarioIdAtual == -1 || objetivoService == null) {
@@ -1295,7 +1294,7 @@ private void excluirObjetivoSelecionado() {
             boolean deletado = objetivoService.deleteObjetivo(objSelecionado.getId(), this.usuarioIdAtual);
             if (deletado) {
                 JOptionPane.showMessageDialog(this, "Objetivo '" + objSelecionado.getNome() + "' excluído com sucesso.", "Objetivo Excluído", JOptionPane.INFORMATION_MESSAGE);
-                loadObjetivos(); // Recarrega a lista
+                loadObjetivos(); 
             } else {
                 JOptionPane.showMessageDialog(this, "Não foi possível excluir o objetivo. Pode já ter sido removido ou ocorreu um erro.", "Erro na Exclusão", JOptionPane.ERROR_MESSAGE);
             }
@@ -1309,7 +1308,7 @@ private void excluirObjetivoSelecionado() {
     }
 }
 
-    // Em MainFrame.java
+    
 private void toggleConclusaoObjetivoSelecionado() {
     Objetivo objSelecionado = objetivosJList.getSelectedValue();
      if (usuarioIdAtual == -1 || objetivoService == null) {
@@ -1322,28 +1321,25 @@ private void toggleConclusaoObjetivoSelecionado() {
     }
     
     try {
-        boolean novoStatusConcluido = !objSelecionado.isConcluido(); // Determina o status antes da chamada
+        boolean novoStatusConcluido = !objSelecionado.isConcluido(); 
         boolean sucesso = objetivoService.toggleConclusaoObjetivo(objSelecionado.getId(), this.usuarioIdAtual);
         
         if (sucesso) {
             String msg = "Objetivo '" + objSelecionado.getNome() + 
                          (novoStatusConcluido ? "' marcado como concluído!" : "' desmarcado como concluído!");
             JOptionPane.showMessageDialog(this, msg, "Status do Objetivo", JOptionPane.INFORMATION_MESSAGE);
-            loadObjetivos(); // Recarrega e reordena a lista
+            loadObjetivos(); 
             
-            // Tenta reselecionar o item (opcional, pode ser complicado se a ordem mudar muito)
-            // Para isso, você precisaria encontrar o objeto na nova lista pelo ID e setar o índice.
-            // Exemplo simples de reseleção (pode não ser perfeito):
-            // final int idParaSelecionar = objSelecionado.getId();
-            // SwingUtilities.invokeLater(() -> {
-            //     for (int i = 0; i < objetivosListModel.getSize(); i++) {
-            //         if (objetivosListModel.getElementAt(i).getId() == idParaSelecionar) {
-            //             objetivosJList.setSelectedIndex(i);
-            //             objetivosJList.ensureIndexIsVisible(i);
-            //             break;
-            //         }
-            //     }
-            // });
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
 
         } else {
             JOptionPane.showMessageDialog(this, "Não foi possível alterar o status do objetivo.", "Erro", JOptionPane.ERROR_MESSAGE);

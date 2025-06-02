@@ -1,9 +1,9 @@
-package com.habitracker.backend; // Ou com.habitracker.backend
+package com.habitracker.backend; 
 
 import com.habitracker.database.UsuarioDAO;
 import com.habitracker.model.Usuario;
 import java.util.List;
-import java.util.ArrayList; // Necessário para o caso de getAllUsuarios retornar null do DAO
+import java.util.ArrayList; 
 
 public class UsuarioService {
 
@@ -35,7 +35,7 @@ public class UsuarioService {
     public List<Usuario> getAllUsuarios() {
         System.out.println("UsuarioService: Buscando todos os usuários.");
         List<Usuario> usuarios = usuarioDAO.getAllUsuarios();
-        return usuarios != null ? usuarios : new ArrayList<>(); // Garante que nunca retorna null
+        return usuarios != null ? usuarios : new ArrayList<>(); 
     }
 
     public boolean updatePontosUsuario(int usuarioId, int novosPontos) {
@@ -56,13 +56,13 @@ public class UsuarioService {
         return usuarioDAO.deleteUsuario(usuarioId);
     }
 
-    // --- MÉTODO MAIN PARA TESTES COMPLETOS DO UsuarioService ---
+    
     public static void main(String[] args) {
         UsuarioService usuarioService = new UsuarioService();
 
         System.out.println("--- INICIANDO TESTES COMPLETOS DO CRUD DE USUÁRIOS VIA SERVICE ---");
 
-        // 1. Teste addUsuario
+        
         System.out.println("\n--- Testando addUsuario ---");
         String nomeUsuarioTeste = "ServiceUser_" + System.currentTimeMillis();
         Usuario novoUsuario = new Usuario(nomeUsuarioTeste);
@@ -74,12 +74,12 @@ public class UsuarioService {
             idUsuarioTeste = usuarioAdicionado.getId();
         } else {
             System.out.println("FALHA (addUsuario) para nome: " + nomeUsuarioTeste);
-            // Se a adição falhar, muitos testes subsequentes não farão sentido.
-            // Poderíamos adicionar um return aqui ou lidar com idUsuarioTeste == -1 nos testes.
+            
+            
         }
 
-        // Teste addUsuario com nome duplicado (espera-se falha se o primeiro foi adicionado)
-        if (idUsuarioTeste != -1) { // Só testa duplicado se o primeiro foi adicionado
+        
+        if (idUsuarioTeste != -1) { 
             System.out.println("\n--- Testando addUsuario (nome duplicado) ---");
             Usuario usuarioDuplicado = new Usuario(nomeUsuarioTeste);
             Usuario resultadoDuplicado = usuarioService.addUsuario(usuarioDuplicado);
@@ -90,7 +90,7 @@ public class UsuarioService {
             }
         }
 
-        // 2. Teste getUsuarioById
+        
         if (idUsuarioTeste != -1) {
             System.out.println("\n--- Testando getUsuarioById (ID existente) ---");
             Usuario buscadoPorId = usuarioService.getUsuarioById(idUsuarioTeste);
@@ -110,7 +110,7 @@ public class UsuarioService {
             System.out.println("FALHA (getUsuarioById não existente): Encontrou usuário " + naoEncontradoPorId);
         }
 
-        // 3. Teste getUsuarioByNome
+        
         if (idUsuarioTeste != -1) {
             System.out.println("\n--- Testando getUsuarioByNome (Nome existente) ---");
             Usuario buscadoPorNome = usuarioService.getUsuarioByNome(nomeUsuarioTeste);
@@ -130,7 +130,7 @@ public class UsuarioService {
             System.out.println("FALHA (getUsuarioByNome não existente): Encontrou usuário " + naoEncontradoPorNome);
         }
 
-        // 4. Teste updatePontosUsuario
+        
         if (idUsuarioTeste != -1) {
             System.out.println("\n--- Testando updatePontosUsuario ---");
             int novosPontos = 250;
@@ -147,7 +147,7 @@ public class UsuarioService {
             }
         }
 
-        // Adicionar um segundo usuário para testar getAllUsuarios e delete
+        
         System.out.println("\n--- Adicionando segundo usuário para testes de getAll e delete ---");
         String nomeUsuario2 = "UsuarioTemporario_" + System.currentTimeMillis();
         Usuario usuario2 = new Usuario(nomeUsuario2);
@@ -156,7 +156,7 @@ public class UsuarioService {
         if (usuario2Adicionado != null) idUsuario2 = usuario2Adicionado.getId();
 
 
-        // 5. Teste getAllUsuarios
+        
         System.out.println("\n--- Testando getAllUsuarios ---");
         List<Usuario> todosUsuarios = usuarioService.getAllUsuarios();
         System.out.println("Total de usuários encontrados: " + todosUsuarios.size());
@@ -171,8 +171,8 @@ public class UsuarioService {
         if (idUsuario2 != -1 && !encontrouUsuario2) System.out.println("ALERTA: Segundo usuário de teste (ID: "+idUsuario2+") não encontrado no getAllUsuarios.");
 
 
-        // 6. Teste deleteUsuario
-        if (idUsuario2 != -1) { // Deleta o segundo usuário adicionado
+        
+        if (idUsuario2 != -1) { 
             System.out.println("\n--- Testando deleteUsuario (ID existente) ---");
             boolean deletado = usuarioService.deleteUsuario(idUsuario2);
             if (deletado) {

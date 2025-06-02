@@ -7,7 +7,7 @@ public class Usuario {
 
     public Usuario(String nome) {
         this.nome = nome;
-        this.pontos = 0; // Usuários novos começam com 0 pontos
+        this.pontos = 0; 
     }
 
     public Usuario(int id, String nome, int pontos) {

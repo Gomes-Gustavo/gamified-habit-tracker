@@ -1,6 +1,6 @@
 package com.habitracker.backend;
 
-// Todos os imports que você precisará para os testes:
+
 import com.habitracker.database.HabitDAO;
 import com.habitracker.database.ProgressoDiarioDAO;
 import com.habitracker.database.UsuarioDAO;
@@ -20,7 +20,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.time.LocalDate;
-import java.time.LocalTime; // Importar LocalTime
+import java.time.LocalTime; 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;

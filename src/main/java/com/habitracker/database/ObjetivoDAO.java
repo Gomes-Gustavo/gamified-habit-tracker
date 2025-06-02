@@ -9,7 +9,7 @@ import java.util.List;
 public class ObjetivoDAO {
 
     public Objetivo addObjetivo(Objetivo objetivo) {
-        // Adicionada a coluna data_meta
+        
         String sql = "INSERT INTO objetivos (usuario_id, nome, descricao, concluido, data_criacao, data_conclusao, data_meta) VALUES (?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = ConnectionFactory.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -25,7 +25,7 @@ public class ObjetivoDAO {
             } else {
                 pstmt.setNull(6, Types.DATE);
             }
-            // Adicionar data_meta
+            
             if (objetivo.getDataMeta() != null) {
                 pstmt.setDate(7, Date.valueOf(objetivo.getDataMeta()));
             } else {
@@ -48,7 +48,7 @@ public class ObjetivoDAO {
         return null;
     }
 
-    // Método helper para mapear ResultSet para Objetivo (evita repetição)
+    
     private Objetivo mapResultSetToObjetivo(ResultSet rs) throws SQLException {
         LocalDate dataConclusao = null;
         Date sqlDataConclusao = rs.getDate("data_conclusao");
@@ -57,7 +57,7 @@ public class ObjetivoDAO {
         }
 
         LocalDate dataMeta = null;
-        Date sqlDataMeta = rs.getDate("data_meta"); // Buscar data_meta
+        Date sqlDataMeta = rs.getDate("data_meta"); 
         if (sqlDataMeta != null) {
             dataMeta = sqlDataMeta.toLocalDate();
         }
@@ -70,12 +70,12 @@ public class ObjetivoDAO {
             rs.getBoolean("concluido"),
             rs.getDate("data_criacao").toLocalDate(),
             dataConclusao,
-            dataMeta // Adicionar dataMeta ao construtor
+            dataMeta 
         );
     }
 
     public Objetivo getObjetivoById(int objetivoId) {
-        // Adicionar data_meta ao SELECT (ou usar SELECT *)
+        
         String sql = "SELECT id, usuario_id, nome, descricao, concluido, data_criacao, data_conclusao, data_meta FROM objetivos WHERE id = ?";
         try (Connection conn = ConnectionFactory.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -94,7 +94,7 @@ public class ObjetivoDAO {
 
     public List<Objetivo> getObjetivosByUserId(int usuarioId) {
         List<Objetivo> objetivos = new ArrayList<>();
-        // Adicionar data_meta ao SELECT (ou usar SELECT *)
+        
         String sql = "SELECT id, usuario_id, nome, descricao, concluido, data_criacao, data_conclusao, data_meta FROM objetivos WHERE usuario_id = ? ORDER BY data_criacao DESC";
         try (Connection conn = ConnectionFactory.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -112,7 +112,7 @@ public class ObjetivoDAO {
     }
 
     public boolean updateObjetivo(Objetivo objetivo) {
-        // Adicionar data_meta ao UPDATE
+        
         String sql = "UPDATE objetivos SET nome = ?, descricao = ?, concluido = ?, data_conclusao = ?, data_meta = ? WHERE id = ? AND usuario_id = ?";
         try (Connection conn = ConnectionFactory.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -125,7 +125,7 @@ public class ObjetivoDAO {
             } else {
                 pstmt.setNull(4, Types.DATE);
             }
-            // Adicionar data_meta
+            
             if (objetivo.getDataMeta() != null) {
                 pstmt.setDate(5, Date.valueOf(objetivo.getDataMeta()));
             } else {
@@ -133,7 +133,7 @@ public class ObjetivoDAO {
             }
             
             pstmt.setInt(6, objetivo.getId());
-            pstmt.setInt(7, objetivo.getUsuarioId()); // Garante que o usuário só atualize seus próprios objetivos
+            pstmt.setInt(7, objetivo.getUsuarioId()); 
             return pstmt.executeUpdate() > 0;
         } catch (SQLException e) {
             System.err.println("Erro ao atualizar objetivo: " + e.getMessage());
@@ -142,9 +142,9 @@ public class ObjetivoDAO {
         return false;
     }
 
-    // Seus outros métodos (deleteObjetivo, links, etc.) permanecem como estão,
-    // a menos que precisem interagir com data_meta de alguma forma específica.
-    // ... (deleteObjetivo, addHabitoObjetivoLink, etc. - código existente) ...
+    
+    
+    
     public boolean deleteObjetivo(int objetivoId, int usuarioId) {
         removeAllHabitoLinksForObjetivo(objetivoId); 
         String sql = "DELETE FROM objetivos WHERE id = ? AND usuario_id = ?";

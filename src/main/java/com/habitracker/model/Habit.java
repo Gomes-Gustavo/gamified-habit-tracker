@@ -12,14 +12,14 @@ public class Habit {
     private String name;
     private String description;
     private LocalDate creationDate;
-    private transient boolean cumpridoHoje; // Status para dataContextoHabitos
+    private transient boolean cumpridoHoje; 
     private LocalTime horarioOpcional;
     private int usuarioId;
     private transient int sequenciaAtual;
     private Set<DayOfWeek> diasDaSemana;
-    private transient boolean atrasadoENaoCumprido; // <<< ADICIONADO AQUI
+    private transient boolean atrasadoENaoCumprido; 
 
-    // Construtor para novos hábitos
+    
     public Habit(String name, String description, LocalDate creationDate, int usuarioId, LocalTime horarioOpcional) {
         this.name = name;
         this.description = description;
@@ -28,10 +28,10 @@ public class Habit {
         this.horarioOpcional = horarioOpcional;
         this.sequenciaAtual = 0;
         this.diasDaSemana = new HashSet<>();
-        this.atrasadoENaoCumprido = false; // Default
+        this.atrasadoENaoCumprido = false; 
     }
 
-    // Construtor para carregar do banco
+    
     public Habit(int id, String name, String description, LocalDate creationDate, int usuarioId, LocalTime horarioOpcional) {
         this.id = id;
         this.name = name;
@@ -41,17 +41,17 @@ public class Habit {
         this.horarioOpcional = horarioOpcional;
         this.sequenciaAtual = 0;
         this.diasDaSemana = new HashSet<>();
-        this.atrasadoENaoCumprido = false; // Default
+        this.atrasadoENaoCumprido = false; 
     }
     
-    // Construtor padrão
+    
     public Habit() {
         this.sequenciaAtual = 0;
         this.diasDaSemana = new HashSet<>();
-        this.atrasadoENaoCumprido = false; // Default
+        this.atrasadoENaoCumprido = false; 
     }
 
-    // Getters
+    
     public int getId() { return id; }
     public String getName() { return name; }
     public String getDescription() { return description; }
@@ -61,9 +61,9 @@ public class Habit {
     public boolean isCumpridoHoje() { return cumpridoHoje; }
     public int getSequenciaAtual() { return sequenciaAtual; }
     public Set<DayOfWeek> getDiasDaSemana() { return diasDaSemana; }
-    public boolean isAtrasadoENaoCumprido() { return atrasadoENaoCumprido; } // <<< GETTER ADICIONADO
+    public boolean isAtrasadoENaoCumprido() { return atrasadoENaoCumprido; } 
 
-    // Setters
+    
     public void setId(int id) { this.id = id; }
     public void setName(String name) { this.name = name; }
     public void setDescription(String description) { this.description = description; }
@@ -75,7 +75,7 @@ public class Habit {
     public void setDiasDaSemana(Set<DayOfWeek> diasDaSemana) {
         this.diasDaSemana = (diasDaSemana != null) ? new HashSet<>(diasDaSemana) : new HashSet<>();
     }
-    public void setAtrasadoENaoCumprido(boolean atrasadoENaoCumprido) { // <<< SETTER ADICIONADO
+    public void setAtrasadoENaoCumprido(boolean atrasadoENaoCumprido) { 
         this.atrasadoENaoCumprido = atrasadoENaoCumprido;
     }
 
@@ -90,7 +90,7 @@ public class Habit {
         return "Habit{" +
                "id=" + id +
                ", name='" + name + '\'' +
-               (atrasadoENaoCumprido ? " [ATRASADO]" : "") + // Para debug
+               (atrasadoENaoCumprido ? " [ATRASADO]" : "") + 
                ", dias=[" + diasJoiner.toString() + "]" +
                '}';
     }

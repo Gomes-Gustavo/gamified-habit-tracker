@@ -3,15 +3,15 @@ package com.habitracker.backend;
 import com.habitracker.database.ObjetivoDAO;
 import com.habitracker.database.HabitDAO;
 import com.habitracker.model.Objetivo;
-// import com.habitracker.model.Habit; // Descomente se usar
+
 import com.habitracker.serviceapi.exceptions.PersistenceException;
 import com.habitracker.serviceapi.exceptions.ValidationException;
-// import com.habitracker.serviceapi.exceptions.UserNotFoundException; // Descomente se usar
+
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.ArrayList;
-// import java.util.stream.Collectors; // Descomente se usar
+
 
 public class ObjetivoService {
     private final ObjetivoDAO objetivoDAO;
@@ -25,7 +25,7 @@ public class ObjetivoService {
     public List<Objetivo> getObjetivosDoUsuario(int usuarioId) throws PersistenceException {
         try {
             List<Objetivo> objetivos = objetivoDAO.getObjetivosByUserId(usuarioId);
-            // Lógica para carregar hábitos vinculados (se necessário) permanece a mesma
+            
             return objetivos;
         } catch (Exception e) {
             throw new PersistenceException("Erro ao buscar objetivos do usuário.", e);
@@ -40,18 +40,18 @@ public class ObjetivoService {
             throw new ValidationException("ID de usuário inválido para o objetivo.");
         }
         
-        // Garante data de criação e estado inicial
+        
         objetivo.setDataCriacao(LocalDate.now()); 
         objetivo.setConcluido(false);
 
-        // Validação opcional para dataMeta
+        
         if (objetivo.getDataMeta() != null && objetivo.getDataMeta().isBefore(objetivo.getDataCriacao())) {
             throw new ValidationException("A data meta não pode ser anterior à data de criação.");
         }
 
         Objetivo objetivoSalvo = null;
         try {
-            objetivoSalvo = objetivoDAO.addObjetivo(objetivo); // DAO já deve lidar com dataMeta
+            objetivoSalvo = objetivoDAO.addObjetivo(objetivo); 
         } catch (Exception e) {
             throw new PersistenceException("Erro ao salvar o objetivo no banco.", e);
         }
@@ -60,7 +60,7 @@ public class ObjetivoService {
             throw new PersistenceException("Falha ao salvar objetivo ou obter ID gerado.");
         }
 
-        // Lógica de vincular hábitos permanece a mesma
+        
         if (idsHabitosVinculados != null && !idsHabitosVinculados.isEmpty()) {
             for (Integer habitoId : idsHabitosVinculados) {
                 try {
@@ -86,20 +86,20 @@ public class ObjetivoService {
             throw new ValidationException("Não é permitido alterar o proprietário do objetivo.");
         }
 
-        // Validação opcional para dataMeta (usa a data de criação original do objExistente)
+        
         if (objetivo.getDataMeta() != null && objExistente.getDataCriacao() !=null && objetivo.getDataMeta().isBefore(objExistente.getDataCriacao())) {
             throw new ValidationException("A data meta não pode ser anterior à data de criação original do objetivo.");
         }
-        // Se a data de criação puder ser alterada (não recomendado), use objetivo.getDataCriacao()
+        
 
         boolean sucessoUpdate = false;
         try {
-            // Assegure que o objetivo passado para o DAO contém a dataCriacao correta (a original)
-            // e não uma nova, a menos que a edição da data de criação seja permitida.
-            // Geralmente, dataCriacao não muda.
-            objetivo.setDataCriacao(objExistente.getDataCriacao()); // Preserva a data de criação original
             
-            sucessoUpdate = objetivoDAO.updateObjetivo(objetivo); // DAO já deve lidar com dataMeta
+            
+            
+            objetivo.setDataCriacao(objExistente.getDataCriacao()); 
+            
+            sucessoUpdate = objetivoDAO.updateObjetivo(objetivo); 
         } catch (Exception e) {
             throw new PersistenceException("Erro ao atualizar o objetivo no banco.", e);
         }
@@ -108,7 +108,7 @@ public class ObjetivoService {
             throw new PersistenceException("Falha ao atualizar objetivo no banco (DAO retornou false).");
         }
 
-        // Lógica de atualizar links permanece a mesma
+        
         try {
             objetivoDAO.removeAllHabitoLinksForObjetivo(objetivo.getId());
             if (idsHabitosVinculados != null && !idsHabitosVinculados.isEmpty()) {
@@ -123,8 +123,8 @@ public class ObjetivoService {
         return objetivoDAO.getObjetivoById(objetivo.getId());
     }
 
-    // Métodos deleteObjetivo, toggleConclusaoObjetivo, getHabitoIdsForObjetivo permanecem os mesmos
-    // ... (código existente para delete, toggle, getHabitoIds) ...
+    
+    
     public boolean deleteObjetivo(int objetivoId, int usuarioId) throws PersistenceException {
         try {
             return objetivoDAO.deleteObjetivo(objetivoId, usuarioId);

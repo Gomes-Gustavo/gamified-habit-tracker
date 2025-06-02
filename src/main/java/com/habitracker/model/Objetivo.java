@@ -1,7 +1,7 @@
 package com.habitracker.model;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter; // ADICIONE ESTE IMPORT
+import java.time.format.DateTimeFormatter; 
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,7 +17,7 @@ public class Objetivo {
 
     private transient List<Habit> habitosVinculados;
 
-    // Construtor completo que inclui dataMeta
+    
     public Objetivo(int id, int usuarioId, String nome, String descricao, boolean concluido, 
                     LocalDate dataCriacao, LocalDate dataConclusao, LocalDate dataMeta) {
         this.id = id;
@@ -31,18 +31,18 @@ public class Objetivo {
         this.habitosVinculados = new ArrayList<>();
     }
 
-    // Construtor para novos objetivos
+    
     public Objetivo(int usuarioId, String nome, String descricao) {
         this.usuarioId = usuarioId;
         this.nome = nome;
         this.descricao = descricao;
         this.concluido = false;
         this.dataCriacao = LocalDate.now();
-        this.dataMeta = null; // dataMeta pode ser definida depois ou na criação via UI
+        this.dataMeta = null; 
         this.habitosVinculados = new ArrayList<>();
     }
 
-    // Getters e Setters (como definidos anteriormente, incluindo para dataMeta)
+    
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
     public int getUsuarioId() { return usuarioId; }
@@ -64,14 +64,14 @@ public class Objetivo {
 
     @Override
     public String toString() {
-        // Este toString é o que você forneceu, que não usa DateTimeFormatter.
-        // Se você quiser usar o que eu sugeri antes com a data formatada, adicione o import.
+        
+        
         String prefixo = concluido ? "✔ " : "⏳ ";
         String descCurta = (descricao != null && !descricao.isEmpty()) ? 
                            " (" + (descricao.length() > 30 ? descricao.substring(0, 27) + "..." : descricao) + ")" 
                            : "";
         String metaStr = (dataMeta != null) ? 
-                         " [Meta: " + dataMeta.format(DateTimeFormatter.ofPattern("dd/MM/yy")) + "]" // DateTimeFormatter usado aqui
+                         " [Meta: " + dataMeta.format(DateTimeFormatter.ofPattern("dd/MM/yy")) + "]" 
                          : "";
         return prefixo + nome + descCurta + metaStr;
     }

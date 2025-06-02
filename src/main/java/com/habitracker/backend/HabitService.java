@@ -2,7 +2,7 @@ package com.habitracker.backend;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Collections; // Mantido para o DTO, se ele ainda usar para listas vazias
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
@@ -10,31 +10,31 @@ import java.util.HashMap;
 import com.habitracker.database.HabitDAO;
 import com.habitracker.database.ProgressoDiarioDAO;
 import com.habitracker.database.UsuarioDAO;
-// import com.habitracker.model.Conquista; // REMOVIDO
+
 import com.habitracker.model.Habit;
 import com.habitracker.model.ProgressoDiario;
 import com.habitracker.model.Usuario;
 import com.habitracker.serviceapi.HabitTrackerServiceAPI;
-import com.habitracker.serviceapi.dto.FeedbackMarcacaoDTO; // Este DTO precisa ser ajustado
+import com.habitracker.serviceapi.dto.FeedbackMarcacaoDTO;
 import com.habitracker.serviceapi.exceptions.HabitNotFoundException;
 import com.habitracker.serviceapi.exceptions.PersistenceException;
 import com.habitracker.serviceapi.exceptions.UserNotFoundException;
 import com.habitracker.serviceapi.exceptions.ValidationException;
-// import com.habitracker.backend.ConquistaService; // REMOVIDO
+
 
 public class HabitService implements HabitTrackerServiceAPI {
 
     private final HabitDAO habitDAO;
     private final UsuarioDAO usuarioDAO;
     private final ProgressoDiarioDAO progressoDiarioDAO;
-    // private final ConquistaService conquistaService; // REMOVIDO
+    
 
     public HabitService(HabitDAO habitDAO, UsuarioDAO usuarioDAO,
-                        ProgressoDiarioDAO progressoDiarioDAO /*, ConquistaService conquistaService REMOVIDO */) {
+                        ProgressoDiarioDAO progressoDiarioDAO ) {
         this.habitDAO = habitDAO;
         this.usuarioDAO = usuarioDAO;
         this.progressoDiarioDAO = progressoDiarioDAO;
-        // this.conquistaService = conquistaService; // REMOVIDO
+        
     }
 
     @Override
@@ -49,7 +49,7 @@ public class HabitService implements HabitTrackerServiceAPI {
     
     @Override
     public List<Habit> getHabitsByUserId(int userId) throws PersistenceException, UserNotFoundException {
-        getUsuarioById(userId); // Valida usuário
+        getUsuarioById(userId); 
         try {
             List<Habit> userHabits = habitDAO.getHabitsByUserId(userId);
             return userHabits != null ? userHabits : new ArrayList<>();
@@ -127,10 +127,9 @@ public class HabitService implements HabitTrackerServiceAPI {
 
     @Override
     public boolean deleteHabit(int habitId) throws HabitNotFoundException, PersistenceException {
-        getHabitById(habitId); // Valida se existe
+        getHabitById(habitId); 
         try {
-            // Antes de deletar o hábito, você pode querer deletar o progresso associado
-            // progressoDiarioDAO.deleteProgressosByHabitoId(habitId); // Se você tiver esse método no DAO
+            
             
             boolean sucessoNoDAO = habitDAO.deleteHabit(habitId);
             if (!sucessoNoDAO) {
@@ -203,21 +202,21 @@ public class HabitService implements HabitTrackerServiceAPI {
         }
 
         boolean foiUmaNovaConclusaoReal = false;
-        int pontosGanhosPeloHabito = 0; // Será calculado com a sequência
-        final int PONTOS_BASE_POR_HABITO = 10; // Defina o valor base aqui ou no Hábito
+        int pontosGanhosPeloHabito = 0; 
+        final int PONTOS_BASE_POR_HABITO = 10; 
 
         if (progressoExistente != null) {
             if (progressoExistente.isStatusCumprido()) {
-                // Assumindo que FeedbackMarcacaoDTO foi ajustado
+                
                 return new FeedbackMarcacaoDTO(true, "Hábito já estava marcado como feito para esta data.", 0, usuarioParaMarcar.getPontos());
             } else {
-                // Se existe um registro "não cumprido", não permitir remarcar como "cumprido" diretamente.
-                // O usuário precisaria de uma lógica para "desmarcar" ou "alterar status".
-                // Por agora, lançamos uma exceção.
+                
+                
+                
                 throw new ValidationException("Hábito já registrado como 'não cumprido' para esta data. Alteração não suportada por esta ação.");
             }
         } else {
-            // Novo registro de progresso
+            
             ProgressoDiario novoProgresso = new ProgressoDiario(usuarioId, habitoId, data, STATUS_A_MARCAR_COMO_FEITO);
             ProgressoDiario progressoProcessado;
             try {
@@ -232,7 +231,7 @@ public class HabitService implements HabitTrackerServiceAPI {
         }
 
         if (foiUmaNovaConclusaoReal) {
-            // Calcular sequência
+            
             int sequenciaAtual = 1;
             LocalDate diaVerificacao = data.minusDays(1);
             while (true) {
@@ -242,19 +241,19 @@ public class HabitService implements HabitTrackerServiceAPI {
                         sequenciaAtual++;
                         diaVerificacao = diaVerificacao.minusDays(1);
                     } else {
-                        break; // Sequência quebrada ou início da contagem
+                        break; 
                     }
                 } catch (Exception e) {
-                    // Tratar erro na busca do progresso anterior, pode ser logar e quebrar a sequência
+                    
                     System.err.println("Erro ao verificar sequência para hábito ID " + habitoId + ": " + e.getMessage());
                     break;
                 }
             }
             
             pontosGanhosPeloHabito = PONTOS_BASE_POR_HABITO * sequenciaAtual;
-            // Você pode adicionar um limite máximo ao multiplicador, ex: Math.min(sequenciaAtual, 7) se x7 for o máximo.
-            // Ou usar uma lógica de faixas: se sequencia > 7, multiplicador = 2, etc.
-            // Para "uma semana -> x7", o multiplicador é a própria sequência.
+            
+            
+            
 
             int pontosAtuaisDoUsuario = usuarioParaMarcar.getPontos();
             int pontosUsuarioAposHabito = pontosAtuaisDoUsuario + pontosGanhosPeloHabito;
@@ -266,10 +265,10 @@ public class HabitService implements HabitTrackerServiceAPI {
                 throw new PersistenceException("Erro de persistência ao atualizar pontos do usuário.", e);
             }
             usuarioParaMarcar.setPontos(pontosUsuarioAposHabito);
-            // Lógica de conquistas removida
+            
         }
 
-        // Assumindo que FeedbackMarcacaoDTO foi ajustado para não ter a lista de conquistas
+        
         return new FeedbackMarcacaoDTO(true, 
                                        foiUmaNovaConclusaoReal ? "Hábito marcado como feito! Sequência: " + (pontosGanhosPeloHabito / PONTOS_BASE_POR_HABITO) + "x" 
                                                               : "Hábito já estava marcado como feito.", 
@@ -283,38 +282,38 @@ public class HabitService implements HabitTrackerServiceAPI {
         return usuario.getPontos();
     }
 
-    // --- Métodos de Conquista Removidos ---
-    // public List<Conquista> getConquistasDesbloqueadasUsuario(...) foi removido
-    // public List<Conquista> getAllConquistasPossiveis() foi removido
-    // private List<Conquista> verificarEConcederConquistasInterno(...) foi removido
+    
+    
+    
+    
     public int getSequenciaEfetivaTerminadaEm(int usuarioId, int habitoId, LocalDate dataLimite) throws PersistenceException {
         int sequencia = 0;
         LocalDate diaVerificacao = dataLimite;
 
-        // Validação básica (opcional, dependendo de onde é chamado)
-        // getUsuarioById(usuarioId); 
-        // getHabitById(habitoId);
+        
+        
+        
 
         while (true) {
             ProgressoDiario progresso;
             try {
                 progresso = progressoDiarioDAO.getProgresso(usuarioId, habitoId, diaVerificacao);
             } catch (Exception e) {
-                // Logar o erro ou decidir se deve ser lançado como PersistenceException
+                
                 System.err.println("Erro ao buscar progresso para cálculo de sequência (hábito ID " + habitoId + 
                                    ", data " + diaVerificacao + "): " + e.getMessage());
-                // Se não puder buscar o progresso, a sequência é interrompida.
-                // Pode-se lançar a PersistenceException ou apenas quebrar o loop.
-                // Lançar a exceção é mais robusto para o chamador lidar.
-                // throw new PersistenceException("Erro ao buscar progresso para cálculo de sequência.", e);
-                break; // Para este exemplo, vamos interromper e retornar o que foi contado.
+                
+                
+                
+                
+                break; 
             }
 
             if (progresso != null && progresso.isStatusCumprido()) {
                 sequencia++;
                 diaVerificacao = diaVerificacao.minusDays(1);
             } else {
-                // Sequência quebrada ou hábito não foi cumprido no dia de início da verificação (dataLimite)
+                
                 break;
             }
         }
@@ -324,7 +323,7 @@ public class HabitService implements HabitTrackerServiceAPI {
     @Override
     public Map<Integer, Boolean> getStatusHabitosPorDia(int usuarioId, List<Integer> habitIds, LocalDate data)
             throws PersistenceException, UserNotFoundException {
-        getUsuarioById(usuarioId); // Valida usuário
+        getUsuarioById(usuarioId); 
         Map<Integer, Boolean> statusMap = new HashMap<>();
         if (habitIds == null || habitIds.isEmpty()) {
             return statusMap;
@@ -352,60 +351,9 @@ public class HabitService implements HabitTrackerServiceAPI {
         }
     }
     
-    // --- MÉTODOS PARA OBJETIVOS (ESQUELETO - VOCÊ PRECISA IMPLEMENTAR O DAO E MODEL) ---
-    // Estes métodos seriam idealmente em um ObjetivoService.java, mas para simplificar
-    // podem ser adicionados aqui temporariamente ou você pode chamar o ObjetivoDAO diretamente do MainFrame.
+    
+    
+    
 
-    /*
-    public List<Objetivo> getObjetivosDoUsuario(int usuarioId) throws UserNotFoundException, PersistenceException {
-        getUsuarioById(usuarioId); // Valida usuário
-        // return objetivoDAO.getObjetivosByUserId(usuarioId);
-        throw new UnsupportedOperationException("Funcionalidade de buscar objetivos não implementada.");
-    }
-
-    public Objetivo addObjetivo(Objetivo objetivo, List<Integer> idsHabitosVinculados) throws PersistenceException, ValidationException {
-        // Validar objetivo
-        // Objetivo objSalvo = objetivoDAO.addObjetivo(objetivo);
-        // if (objSalvo != null && idsHabitosVinculados != null) {
-        //     for (Integer habitoId : idsHabitosVinculados) {
-        //         objetivoDAO.addHabitoObjetivoLink(habitoId, objSalvo.getId());
-        //     }
-        // }
-        // return objSalvo;
-        throw new UnsupportedOperationException("Funcionalidade de adicionar objetivo não implementada.");
-    }
-
-    public Objetivo updateObjetivo(Objetivo objetivo, List<Integer> idsHabitosVinculados) throws PersistenceException, ValidationException {
-        // Validar objetivo
-        // boolean sucesso = objetivoDAO.updateObjetivo(objetivo);
-        // if (sucesso) {
-        //     objetivoDAO.removeAllHabitoLinksForObjetivo(objetivo.getId()); // Limpa links antigos
-        //     if (idsHabitosVinculados != null) {
-        //         for (Integer habitoId : idsHabitosVinculados) {
-        //             objetivoDAO.addHabitoObjetivoLink(habitoId, objetivo.getId());
-        //         }
-        //     }
-        //     return objetivoDAO.getObjetivoById(objetivo.getId());
-        // }
-        // return null;
-        throw new UnsupportedOperationException("Funcionalidade de atualizar objetivo não implementada.");
-    }
-
-    public boolean deleteObjetivo(int objetivoId) throws PersistenceException {
-        // objetivoDAO.removeAllHabitoLinksForObjetivo(objetivoId);
-        // return objetivoDAO.deleteObjetivo(objetivoId);
-        throw new UnsupportedOperationException("Funcionalidade de deletar objetivo não implementada.");
-    }
-
-    public boolean toggleConclusaoObjetivo(int objetivoId) throws PersistenceException {
-        // Objetivo obj = objetivoDAO.getObjetivoById(objetivoId);
-        // if (obj != null) {
-        //     obj.setConcluido(!obj.isConcluido());
-        //     obj.setDataConclusao(obj.isConcluido() ? LocalDate.now() : null);
-        //     return objetivoDAO.updateObjetivo(obj);
-        // }
-        // return false;
-        throw new UnsupportedOperationException("Funcionalidade de marcar objetivo como concluído não implementada.");
-    }
-    */
+    
 }

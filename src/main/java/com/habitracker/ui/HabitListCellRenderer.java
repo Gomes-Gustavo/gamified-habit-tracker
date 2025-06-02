@@ -11,7 +11,7 @@ public class HabitListCellRenderer extends JLabel implements ListCellRenderer<Ha
     private DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
 
-    // --- Cores ---
+    
     private final String NOME_H_COR_ESCURO_NORMAL = "#E0E0E0";
     private final String NOME_H_COR_CLARO_NORMAL = "#1A1A1A";
     private final String DESC_H_COR_ESCURO_NORMAL = "#A0A0A0";
@@ -33,13 +33,13 @@ public class HabitListCellRenderer extends JLabel implements ListCellRenderer<Ha
     private final String INFO_EXTRA_COR_ESCURO_CUMPRIDO = "#81C784";
     private final String INFO_EXTRA_COR_CLARO_CUMPRIDO = "#388E3C";
     
-    // Novas Cores para Hábito Atrasado e Não Cumprido
-    private final Color COR_FUNDO_H_ATRASADO_ESCURO = new Color(100, 30, 30); // Vermelho escuro para fundo
-    private final Color COR_FUNDO_H_ATRASADO_CLARO = new Color(255, 205, 210); // Rosa/Vermelho claro para fundo
-    private final String TEXTO_H_COR_ESCURO_ATRASADO = "#FFCDD2"; // Texto claro para fundo vermelho escuro
-    private final String TEXTO_H_COR_CLARO_ATRASADO = "#B71C1C";  // Texto vermelho escuro para fundo claro
-    private final String X_MARK_COR_ESCURO_ATRASADO = "#FFEBEE"; // X quase branco
-    private final String X_MARK_COR_CLARO_ATRASADO = "#C62828";  // X vermelho mais escuro (um pouco diferente do texto para dar sutileza)
+    
+    private final Color COR_FUNDO_H_ATRASADO_ESCURO = new Color(100, 30, 30); 
+    private final Color COR_FUNDO_H_ATRASADO_CLARO = new Color(255, 205, 210); 
+    private final String TEXTO_H_COR_ESCURO_ATRASADO = "#FFCDD2"; 
+    private final String TEXTO_H_COR_CLARO_ATRASADO = "#B71C1C";  
+    private final String X_MARK_COR_ESCURO_ATRASADO = "#FFEBEE"; 
+    private final String X_MARK_COR_CLARO_ATRASADO = "#C62828";  
     
     private final String PLACEHOLDER_TEXT_COLOR_DARK = "#B0B0B0";
     private final String PLACEHOLDER_TEXT_COLOR_LIGHT = "#707070";
@@ -58,32 +58,32 @@ public class HabitListCellRenderer extends JLabel implements ListCellRenderer<Ha
                                                  boolean isSelected,
                                                  boolean cellHasFocus) {
         
-        if (habit == null) { // Segurança caso o habit seja nulo
+        if (habit == null) { 
             setText("");
             setBackground(list.getBackground());
             return this;
         }
         
-        // Lógica do Placeholder (ID 0)
+        
         if (habit.getId() == 0 && habit.getName() != null && habit.getName().startsWith("Nenhum hábito")) {
             setBackground(list.getBackground()); 
             String placeholderColor = usarTemaEscuro ? PLACEHOLDER_TEXT_COLOR_DARK : PLACEHOLDER_TEXT_COLOR_LIGHT;
             String placeholderText = escapeHtml(habit.getName());
             String placeholderDesc = (habit.getDescription() != null && !habit.getDescription().isEmpty()) 
                                      ? "<br><font size='-1'>" + escapeHtml(habit.getDescription()) + "</font>" 
-                                     : ""; // Cor já embutida no estilo do div
+                                     : ""; 
 
             setText(String.format("<html><div style='width:100%%; text-align:center; color:%s;'>%s%s</div></html>",
                     placeholderColor, placeholderText, placeholderDesc));
             if (isSelected) {
                 setBackground(list.getSelectionBackground());
-                // O texto do placeholder já tem sua cor definida, a seleção só muda o fundo
+                
             }
             setEnabled(list.isEnabled());
             return this;
         }
 
-        // Lógica de renderização normal para hábitos reais
+        
         String nomeHabitoHtmlColor;
         String descricaoHtmlColor;
         String infoExtraHtmlColor;
@@ -91,19 +91,19 @@ public class HabitListCellRenderer extends JLabel implements ListCellRenderer<Ha
 
         if (isSelected) {
             setBackground(list.getSelectionBackground());
-            // Cores para texto quando selecionado
+            
             nomeHabitoHtmlColor = usarTemaEscuro ? TEXTO_H_COR_ESCURO_SELECIONADO : TEXTO_H_COR_CLARO_SELECIONADO;
             descricaoHtmlColor = usarTemaEscuro ? SUBTEXTO_H_COR_ESCURO_SELECIONADO : SUBTEXTO_H_COR_CLARO_SELECIONADO;
             infoExtraHtmlColor = usarTemaEscuro ? SUBTEXTO_H_COR_ESCURO_SELECIONADO : SUBTEXTO_H_COR_CLARO_SELECIONADO;
 
-            // Manter o prefixo (✔ ou X) mesmo quando selecionado, usando a cor do texto selecionado
+            
             if (habit.isCumpridoHoje()) {
                  prefixoNome = "<font color='" + nomeHabitoHtmlColor + "'>✔ </font>";
-            } else if (habit.isAtrasadoENaoCumprido()) { // Checa se está atrasado E não cumprido
+            } else if (habit.isAtrasadoENaoCumprido()) { 
                  prefixoNome = "<font color='" + nomeHabitoHtmlColor + "'>X </font>";
             }
 
-        } else if (habit.isAtrasadoENaoCumprido()) { // Não selecionado, atrasado e não cumprido
+        } else if (habit.isAtrasadoENaoCumprido()) { 
             setBackground(usarTemaEscuro ? COR_FUNDO_H_ATRASADO_ESCURO : COR_FUNDO_H_ATRASADO_CLARO);
             nomeHabitoHtmlColor = usarTemaEscuro ? TEXTO_H_COR_ESCURO_ATRASADO : TEXTO_H_COR_CLARO_ATRASADO;
             descricaoHtmlColor = nomeHabitoHtmlColor; 
@@ -111,19 +111,19 @@ public class HabitListCellRenderer extends JLabel implements ListCellRenderer<Ha
             String xMarkColor = usarTemaEscuro ? X_MARK_COR_ESCURO_ATRASADO : X_MARK_COR_CLARO_ATRASADO;
             prefixoNome = "<font color='" + xMarkColor + "'>X </font>";
 
-        } else if (habit.isCumpridoHoje()) { // Não selecionado, cumprido hoje
+        } else if (habit.isCumpridoHoje()) { 
             setBackground(usarTemaEscuro ? COR_FUNDO_H_CUMPRIDO_ESCURO : COR_FUNDO_H_CUMPRIDO_CLARO);
             nomeHabitoHtmlColor = usarTemaEscuro ? NOME_H_COR_ESCURO_CUMPRIDO : NOME_H_COR_CLARO_CUMPRIDO;
             descricaoHtmlColor = usarTemaEscuro ? DESC_H_COR_ESCURO_CUMPRIDO : DESC_H_COR_CLARO_CUMPRIDO;
             infoExtraHtmlColor = usarTemaEscuro ? INFO_EXTRA_COR_ESCURO_CUMPRIDO : INFO_EXTRA_COR_CLARO_CUMPRIDO;
-            prefixoNome = "<font color='" + nomeHabitoHtmlColor + "'>✔ </font>"; // Usa a cor do nome do hábito cumprido
+            prefixoNome = "<font color='" + nomeHabitoHtmlColor + "'>✔ </font>"; 
         
-        } else { // Não selecionado, não cumprido hoje, não atrasado (pendente para hoje)
+        } else { 
             setBackground(list.getBackground());
             nomeHabitoHtmlColor = usarTemaEscuro ? NOME_H_COR_ESCURO_NORMAL : NOME_H_COR_CLARO_NORMAL;
             descricaoHtmlColor = usarTemaEscuro ? DESC_H_COR_ESCURO_NORMAL : DESC_H_COR_CLARO_NORMAL;
             infoExtraHtmlColor = usarTemaEscuro ? INFO_EXTRA_COR_ESCURO_NORMAL : INFO_EXTRA_COR_CLARO_NORMAL;
-            // Sem prefixo
+            
         }
 
         String nomeHabitoDisplay = prefixoNome + escapeHtml(habit.getName());
@@ -153,9 +153,9 @@ public class HabitListCellRenderer extends JLabel implements ListCellRenderer<Ha
                                      ? escapeHtml(habit.getDescription())
                                      : "<i>Sem descrição</i>";
         
-        // Para o placeholder, a data de criação não é relevante
+        
         String creationDateFormatted = "";
-        if (habit.getId() != 0 && habit.getCreationDate() != null) { // Só mostra data de criação para hábitos reais
+        if (habit.getId() != 0 && habit.getCreationDate() != null) { 
              creationDateFormatted = "Criado: " + habit.getCreationDate().format(dateFormatter);
         } else if (habit.getId() != 0) {
             creationDateFormatted = "<i>Data desconhecida</i>";
@@ -170,9 +170,9 @@ public class HabitListCellRenderer extends JLabel implements ListCellRenderer<Ha
             (creationDateFormatted.isEmpty() ? "" : "<font style='color:%s; font-size:9pt;'>%s</font>") +
             "</div></html>",
             nomeHabitoHtmlColor, nomeHabitoDisplay,
-            infoExtraHtmlColor, horarioSequenciaHtml, // Cor e HTML para horário/sequência
-            descricaoHtmlColor, descriptionTextHtml,  // Cor e HTML para descrição
-            infoExtraHtmlColor, creationDateFormatted // Cor e HTML para data de criação (se houver)
+            infoExtraHtmlColor, horarioSequenciaHtml, 
+            descricaoHtmlColor, descriptionTextHtml,  
+            infoExtraHtmlColor, creationDateFormatted 
         );
         
         setText(text);

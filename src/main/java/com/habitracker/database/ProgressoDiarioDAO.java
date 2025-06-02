@@ -7,13 +7,13 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.LocalDate;
-import java.time.LocalTime; // Necessário se fosse usado aqui, mas não é o caso
+import java.time.LocalTime; 
 import java.util.ArrayList;
 import java.util.List;
 
-import com.habitracker.model.Habit; // Para o método main de teste
+import com.habitracker.model.Habit; 
 import com.habitracker.model.ProgressoDiario;
-import com.habitracker.model.Usuario; // Para o método main de teste
+import com.habitracker.model.Usuario; 
 
 public class ProgressoDiarioDAO {
 
@@ -88,35 +88,28 @@ public class ProgressoDiarioDAO {
         return progresso;
     }
 
-    /**
-     * Busca todos os registros de progresso para um usuário específico em um determinado mês e ano.
-     * @param usuarioId O ID do usuário.
-     * @param ano O ano.
-     * @param mes O mês (1 para Janeiro, 12 para Dezembro).
-     * @return Uma lista de ProgressoDiario para o mês e ano especificados.
-     */
+    
     public List<ProgressoDiario> getProgressosDoMes(int usuarioId, int ano, int mes) {
         List<ProgressoDiario> progressosDoMes = new ArrayList<>();
-        // Ajuste a query conforme seu SGBD para extrair ano e mês.
-        // Exemplo para MySQL:
+        
+        
         String sql = "SELECT id, usuario_id, habito_id, data_registro, status_cumprido " +
                      "FROM registros_progresso " +
                      "WHERE usuario_id = ? AND YEAR(data_registro) = ? AND MONTH(data_registro) = ?";
-        // Exemplo padrão SQL (PostgreSQL, H2, etc.):
-        // String sql = "SELECT id, usuario_id, habito_id, data_registro, status_cumprido " +
-        //              "FROM registros_progresso " +
-        //              "WHERE usuario_id = ? AND EXTRACT(YEAR FROM data_registro) = ? AND EXTRACT(MONTH FROM data_registro) = ?";
+        
+        
+        
 
 
         try (Connection conn = ConnectionFactory.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, usuarioId);
-            pstmt.setInt(2, ano);       // Para YEAR() e MONTH()
-            pstmt.setInt(3, mes);       // Para YEAR() e MONTH()
-            // Se usar strftime (SQLite):
-            // pstmt.setString(2, String.valueOf(ano));
-            // pstmt.setString(3, String.format("%02d", mes));
+            pstmt.setInt(2, ano);       
+            pstmt.setInt(3, mes);       
+            
+            
+            
 
 
             try (ResultSet rs = pstmt.executeQuery()) {
@@ -139,8 +132,8 @@ public class ProgressoDiarioDAO {
 
 
     public static void main(String[] args) {
-        // Seu método main existente para testes, já ajustado para o construtor de Habit com usuarioId e horarioOpcional.
-        // Certifique-se que ele continue funcionando ou ajuste-o conforme necessário.
+        
+        
         ProgressoDiarioDAO progressoDAO = new ProgressoDiarioDAO();
         UsuarioDAO usuarioDAO = new UsuarioDAO();
         HabitDAO habitDAO = new HabitDAO();
@@ -153,7 +146,7 @@ public class ProgressoDiarioDAO {
             if (uTeste == null || uTeste.getId() <= 0) {
                 System.out.println("Falha ao criar usuário de teste via DAO, usando mock simples para ID.");
                 if (uTeste == null) uTeste = tempUser;
-                uTeste.setId(999); // ID Fixo para teste
+                uTeste.setId(999); 
             }
         } catch (Exception e) {
             System.out.println("Exceção ao criar usuário de teste, usando mock simples: " + e.getMessage());
@@ -195,6 +188,6 @@ public class ProgressoDiarioDAO {
         } else {
             System.out.println("FALHA (addProgresso novo).");
         }
-        // ... (resto do seu main de teste)
+        
     }
 }

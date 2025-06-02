@@ -10,11 +10,11 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.TitledBorder;
 import java.awt.*;
-import java.time.DayOfWeek; // IMPORTADO
+import java.time.DayOfWeek; 
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.HashSet;   // IMPORTADO
-import java.util.Set;       // IMPORTADO
+import java.util.HashSet;   
+import java.util.Set;       
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
@@ -29,25 +29,25 @@ public class EditHabitDialog extends JDialog {
     private JLabel lblHorarioSeparador;
     private JLabel lblHorario;
 
-    // Checkboxes para dias da semana
+    
     private JCheckBox chkSeg, chkTer, chkQua, chkQui, chkSex, chkSab, chkDom;
 
     private JButton salvarButton;
     private JButton cancelarButton;
 
     private HabitTrackerServiceAPI habitService;
-    private Habit habitOriginal; // O hábito antes da edição
-    private Habit habitoAtualizado = null; // O hábito após a edição bem-sucedida
+    private Habit habitOriginal; 
+    private Habit habitoAtualizado = null; 
     private boolean atualizadoComSucesso = false;
     private boolean usarTemaEscuro;
 
-    // Cores (mantidas da sua versão anterior ou adapte do AddHabitDialog)
+    
     private final Color COR_FUNDO_DIALOGO_ESCURO = new Color(55, 55, 55);
     private final Color COR_PAINEL_INTERNO_ESCURO = new Color(65, 65, 65);
     private final Color COR_TEXTO_ESCURO = new Color(210, 210, 210);
     private final Color COR_BORDA_ESCURO = new Color(85,85,85);
     private final Color COR_TEXTFIELD_FUNDO_ESCURO = new Color(50,50,50);
-    private final Color COR_BOTAO_SALVAR_ESCURO_BG = new Color(0, 100, 200); // Azul para update
+    private final Color COR_BOTAO_SALVAR_ESCURO_BG = new Color(0, 100, 200); 
     private final Color COR_BOTAO_SALVAR_ESCURO_FG = Color.WHITE;
     private final Color COR_BOTAO_CANCELAR_ESCURO_BG = new Color(90, 90, 90);
     private final Color COR_BOTAO_CANCELAR_ESCURO_FG = COR_TEXTO_ESCURO;
@@ -56,14 +56,14 @@ public class EditHabitDialog extends JDialog {
     public EditHabitDialog(Frame owner, boolean modal, HabitTrackerServiceAPI service, Habit habitToEdit, boolean usarTemaEscuroGlobal) {
         super(owner, "Editar Hábito: " + habitToEdit.getName(), modal);
         this.habitService = service;
-        this.habitOriginal = habitToEdit; // Armazenar o original
+        this.habitOriginal = habitToEdit; 
         this.usarTemaEscuro = usarTemaEscuroGlobal;
 
         initComponents();
         stylizeComponents();
         preencherCampos();
 
-        setSize(450, 480); // Aumentar altura
+        setSize(450, 480); 
         setResizable(false);
         setLocationRelativeTo(owner);
         setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
@@ -78,7 +78,7 @@ public class EditHabitDialog extends JDialog {
     }
 
     private void initComponents() {
-        // Layout idêntico ao AddHabitDialog
+        
         JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
         mainPanel.setBorder(new EmptyBorder(15, 15, 15, 15));
         setContentPane(mainPanel);
@@ -88,7 +88,7 @@ public class EditHabitDialog extends JDialog {
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.anchor = GridBagConstraints.WEST;
 
-        // Linha 0: Nome
+        
         JLabel nomeLabel = new JLabel("Nome:");
         gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0;
         formPanel.add(nomeLabel, gbc);
@@ -97,7 +97,7 @@ public class EditHabitDialog extends JDialog {
         formPanel.add(nomeField, gbc);
         SwingUtilities.invokeLater(() -> nomeField.requestFocusInWindow());
 
-        // Linha 1: Descrição
+        
         JLabel descricaoLabel = new JLabel("Descrição:");
         gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0; gbc.gridwidth = 1; gbc.fill = GridBagConstraints.NONE;
         gbc.anchor = GridBagConstraints.NORTHWEST;
@@ -109,14 +109,14 @@ public class EditHabitDialog extends JDialog {
         gbc.gridx = 1; gbc.gridy = 1; gbc.gridwidth = 3; gbc.weightx = 1.0; gbc.weighty = 0.8; gbc.fill = GridBagConstraints.BOTH;
         formPanel.add(scrollPaneDescricao, gbc);
 
-        // Linha 2: Checkbox para Horário
+        
         chkDefinirHorario = new JCheckBox("Definir Horário?");
         chkDefinirHorario.addActionListener(e -> toggleHorarioFields(chkDefinirHorario.isSelected()));
         gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 4; gbc.weightx = 0; gbc.weighty = 0; gbc.fill = GridBagConstraints.NONE;
         gbc.anchor = GridBagConstraints.WEST;
         formPanel.add(chkDefinirHorario, gbc);
         
-        // Linha 3: Campos de Horário
+        
         lblHorario = new JLabel("Horário:");
         gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 1;
         formPanel.add(lblHorario, gbc);
@@ -134,7 +134,7 @@ public class EditHabitDialog extends JDialog {
         gbc.gridx = 3; gbc.gridy = 3; gbc.weightx = 0.1; gbc.fill = GridBagConstraints.HORIZONTAL;
         formPanel.add(spnMinutos, gbc);
 
-        // Linha 4: Dias da Semana
+        
         JPanel diasPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 3, 2));
         chkSeg = new JCheckBox("Seg"); chkTer = new JCheckBox("Ter"); chkQua = new JCheckBox("Qua");
         chkQui = new JCheckBox("Qui"); chkSex = new JCheckBox("Sex"); chkSab = new JCheckBox("Sáb");
@@ -146,7 +146,7 @@ public class EditHabitDialog extends JDialog {
         gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 4; gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL;
         formPanel.add(diasPanel, gbc);
 
-        // Painel de Botões
+        
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10,0));
         buttonPanel.setBorder(new EmptyBorder(10,0,0,0));
         salvarButton = new JButton("Salvar Alterações");
@@ -169,7 +169,7 @@ public class EditHabitDialog extends JDialog {
     }
 
     private void stylizeComponents() {
-        // Mesma estilização do AddHabitDialog
+        
         Font labelFont = new Font("Segoe UI", Font.PLAIN, 14);
         Font fieldFont = new Font("Segoe UI", Font.PLAIN, 14);
         Font buttonFont = new Font("Segoe UI", Font.BOLD, 13);
@@ -282,7 +282,7 @@ public class EditHabitDialog extends JDialog {
                 spnHoras.setValue(12); 
                 spnMinutos.setValue(0);
             }
-            // Preencher checkboxes dos dias da semana
+            
             Set<DayOfWeek> diasSalvos = habitOriginal.getDiasDaSemana();
             if (diasSalvos != null) {
                 chkSeg.setSelected(diasSalvos.contains(DayOfWeek.MONDAY));
@@ -313,7 +313,7 @@ public class EditHabitDialog extends JDialog {
             horarioOpcional = LocalTime.of(horas, minutos);
         }
 
-        // Coletar dias da semana selecionados
+        
         Set<DayOfWeek> diasSelecionados = new HashSet<>();
         if (chkSeg.isSelected()) diasSelecionados.add(DayOfWeek.MONDAY);
         if (chkTer.isSelected()) diasSelecionados.add(DayOfWeek.TUESDAY);
@@ -328,12 +328,12 @@ public class EditHabitDialog extends JDialog {
             return;
         }
         
-        // Atualizar o objeto habitOriginal com os novos valores
+        
         habitOriginal.setName(nome);
         habitOriginal.setDescription(descricao);
         habitOriginal.setHorarioOpcional(horarioOpcional);
         habitOriginal.setDiasDaSemana(diasSelecionados);
-        // Não alteramos creationDate nem usuarioId aqui.
+        
 
         try {
             this.habitoAtualizado = habitService.updateHabit(habitOriginal);
@@ -357,8 +357,8 @@ public class EditHabitDialog extends JDialog {
     }
 
     public Habit getHabitoAtualizado() {
-        return habitoAtualizado; // Retorna o objeto que foi efetivamente retornado pelo serviço (pode ter mais dados atualizados pelo backend)
-                                 // ou habitOriginal se o serviço não retornar o objeto atualizado.
-                                 // Como habitService.updateHabit retorna o hábito atualizado, usamos this.habitoAtualizado.
+        return habitoAtualizado; 
+                                 
+                                 
     }
 }

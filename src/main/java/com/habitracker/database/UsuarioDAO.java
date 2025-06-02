@@ -13,7 +13,7 @@ public class UsuarioDAO {
 
     public Usuario addUsuario(Usuario usuario) {
         String sql = "INSERT INTO usuarios (nome, pontos) VALUES (?, ?)";
-        // Usaremos Statement.RETURN_GENERATED_KEYS para obter o ID gerado
+        
         try (Connection conn = ConnectionFactory.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             
@@ -23,11 +23,11 @@ public class UsuarioDAO {
             int affectedRows = pstmt.executeUpdate();
             
             if (affectedRows > 0) {
-                // Obter o ID gerado
+                
                 try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
                     if (generatedKeys.next()) {
                         usuario.setId(generatedKeys.getInt(1));
-                        return usuario; // Retorna o usuário com o ID preenchido
+                        return usuario; 
                     }
                 }
             }
@@ -38,7 +38,7 @@ public class UsuarioDAO {
             }
             e.printStackTrace();
         }
-        return null; // Retorna null se a adição falhar ou não conseguir o ID
+        return null; 
     }
 
     public Usuario getUsuarioByNome(String nomeUsuario) {
@@ -138,13 +138,13 @@ public class UsuarioDAO {
         }
     }
     
-    // Você adicionará outros métodos aqui (getUsuarioByNome, getAllUsuarios, deleteUsuario, etc.)
+    
 
     public static void main(String[] args) {
         UsuarioDAO usuarioDAO = new UsuarioDAO();
 
         System.out.println("--- Testando addUsuario ---");
-        String nomeTeste1 = "JogadorParaDeletar_" + System.currentTimeMillis(); // Nome único
+        String nomeTeste1 = "JogadorParaDeletar_" + System.currentTimeMillis(); 
         Usuario usuarioParaDeletar = new Usuario(nomeTeste1);
         Usuario usuarioAdicionado = usuarioDAO.addUsuario(usuarioParaDeletar);
 
@@ -156,7 +156,7 @@ public class UsuarioDAO {
             System.out.println("Falha ao adicionar usuário '" + nomeTeste1 + "' para o teste de delete.");
         }
 
-        String nomeTeste2 = "OutroJogador_" + System.currentTimeMillis(); // Outro usuário que permanecerá
+        String nomeTeste2 = "OutroJogador_" + System.currentTimeMillis(); 
         Usuario novoUsuario2 = new Usuario(nomeTeste2);
         usuarioDAO.addUsuario(novoUsuario2);
 
@@ -168,7 +168,7 @@ public class UsuarioDAO {
             System.out.println(u);
         }
 
-        // NOVO: Teste para deleteUsuario
+        
         System.out.println("\n--- Testando deleteUsuario ---");
         if (idUsuarioParaDeletar != -1) {
             System.out.println("Tentando deletar usuário com ID: " + idUsuarioParaDeletar + " (Nome: " + nomeTeste1 + ")");
@@ -188,7 +188,7 @@ public class UsuarioDAO {
             System.out.println("Skipping teste de delete pois o usuário para deletar não foi adicionado corretamente.");
         }
         
-        // Testar deletar um ID que não existe
+        
         int idNaoExistenteParaDelete = 99998;
         System.out.println("\nTentando deletar usuário com ID não existente: " + idNaoExistenteParaDelete);
         boolean deleteNaoExistente = usuarioDAO.deleteUsuario(idNaoExistenteParaDelete);

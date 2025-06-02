@@ -7,15 +7,15 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Time;
-import java.sql.Types; // Para Types.TIME
-import java.time.DayOfWeek; // IMPORTADO
+import java.sql.Types; 
+import java.time.DayOfWeek; 
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.sql.Date;
 import java.util.List;
 import java.util.ArrayList;
-import java.util.HashSet;   // IMPORTADO
-import java.util.Set;       // IMPORTADO
+import java.util.HashSet;   
+import java.util.Set;       
 
 public class HabitDAO {
 
@@ -28,7 +28,7 @@ public class HabitDAO {
 
         try {
             conn = ConnectionFactory.getConnection();
-            conn.setAutoCommit(false); // Iniciar transação
+            conn.setAutoCommit(false); 
 
             pstmtHabit = conn.prepareStatement(sqlHabit, Statement.RETURN_GENERATED_KEYS);
             pstmtHabit.setString(1, habit.getName());
@@ -48,45 +48,45 @@ public class HabitDAO {
                 if (generatedKeys.next()) {
                     habit.setId(generatedKeys.getInt(1));
 
-                    // Salvar os dias da semana na tabela de junção
+                    
                     if (habit.getDiasDaSemana() != null && !habit.getDiasDaSemana().isEmpty()) {
                         String sqlDias = "INSERT INTO habito_dias_semana (habito_id, dia_semana) VALUES (?, ?)";
                         pstmtDias = conn.prepareStatement(sqlDias);
                         for (DayOfWeek dia : habit.getDiasDaSemana()) {
                             pstmtDias.setInt(1, habit.getId());
-                            pstmtDias.setString(2, dia.name()); // Armazena como "MONDAY", "TUESDAY", etc.
+                            pstmtDias.setString(2, dia.name()); 
                             pstmtDias.addBatch();
                         }
                         pstmtDias.executeBatch();
                     }
-                    conn.commit(); // Finalizar transação com sucesso
+                    conn.commit(); 
                     return habit;
                 }
             }
-            conn.rollback(); // Se não conseguiu obter o ID gerado ou inserir o hábito principal
+            conn.rollback(); 
         } catch (SQLException e) {
             System.err.println("Erro de SQL ao adicionar hábito: " + e.getMessage());
             e.printStackTrace();
             if (conn != null) {
                 try {
-                    conn.rollback(); // Tenta reverter em caso de erro
+                    conn.rollback(); 
                 } catch (SQLException ex) {
                     System.err.println("Erro ao reverter transação: " + ex.getMessage());
                 }
             }
         } finally {
-            // Bloco finally para fechar recursos
+            
             try { if (generatedKeys != null) generatedKeys.close(); } catch (SQLException e) { e.printStackTrace(); }
             try { if (pstmtDias != null) pstmtDias.close(); } catch (SQLException e) { e.printStackTrace(); }
             try { if (pstmtHabit != null) pstmtHabit.close(); } catch (SQLException e) { e.printStackTrace(); }
             try { 
                 if (conn != null) {
-                    conn.setAutoCommit(true); // Restaurar autoCommit
+                    conn.setAutoCommit(true); 
                     conn.close(); 
                 }
             } catch (SQLException e) { e.printStackTrace(); }
         }
-        return null; // Retorna null se a adição falhou
+        return null; 
     }
     
     private Set<DayOfWeek> getDiasDaSemanaParaHabito(int habitoId, Connection conn) throws SQLException {
@@ -121,7 +121,7 @@ public class HabitDAO {
         return habit;
     }
 
-    public List<Habit> getAllHabits() { // Usado principalmente para testes ou admin, agora carrega dias
+    public List<Habit> getAllHabits() { 
         List<Habit> habits = new ArrayList<>();
         String sql = "SELECT id, name, description, creationDate, usuario_id, horario_opcional FROM habits";
         try (Connection conn = ConnectionFactory.getConnection();
@@ -205,9 +205,9 @@ public class HabitDAO {
             if (affectedRows > 0) {
                 pstmtDeleteDias = conn.prepareStatement(sqlDeleteDias);
                 pstmtDeleteDias.setInt(1, habit.getId());
-                pstmtDeleteDias.executeUpdate(); // Remove todos os dias antigos
+                pstmtDeleteDias.executeUpdate(); 
 
-                // Inserir os novos dias selecionados
+                
                 if (habit.getDiasDaSemana() != null && !habit.getDiasDaSemana().isEmpty()) {
                     pstmtInsertDias = conn.prepareStatement(sqlInsertDias);
                     for (DayOfWeek dia : habit.getDiasDaSemana()) {
@@ -220,7 +220,7 @@ public class HabitDAO {
                 conn.commit();
                 return true;
             } else {
-                conn.rollback(); // Hábito principal não foi encontrado/atualizado
+                conn.rollback(); 
                 return false;
             }
         } catch (SQLException e) {
@@ -239,20 +239,19 @@ public class HabitDAO {
     }
 
     public boolean deleteHabit(int habitId) {
-        // ON DELETE CASCADE na FK da tabela habito_dias_semana deve remover os links.
-        // Se não houver CASCADE, você precisaria deletar de habito_dias_semana primeiro:
-        // String sqlDeleteLinks = "DELETE FROM habito_dias_semana WHERE habito_id = ?";
+        
+        
+        
         String sqlDeleteHabit = "DELETE FROM habits WHERE id = ?";
         if (habitId <= 0) return false;
         
         Connection conn = null;
         try {
             conn = ConnectionFactory.getConnection();
-            // Se não usar ON DELETE CASCADE:
-            // try (PreparedStatement pstmtLinks = conn.prepareStatement(sqlDeleteLinks)) {
-            //     pstmtLinks.setInt(1, habitId);
-            //     pstmtLinks.executeUpdate();
-            // }
+            
+            
+            
+            
             try (PreparedStatement pstmtHabit = conn.prepareStatement(sqlDeleteHabit)) {
                 pstmtHabit.setInt(1, habitId);
                 return pstmtHabit.executeUpdate() > 0;
@@ -266,10 +265,10 @@ public class HabitDAO {
         return false;
     }
 
-    // main de teste (pode ser ajustado para testar dias da semana)
+    
     public static void main(String[] args) {
         HabitDAO habitDAO = new HabitDAO();
-        int testeUsuarioId = 1; // Crie este usuário se não existir
+        int testeUsuarioId = 1; 
 
         System.out.println("--- Testando addHabit com dias da semana ---");
         Habit novoHabitoComDias = new Habit("Yoga Matinal", "30 min de yoga", LocalDate.now(), testeUsuarioId, LocalTime.of(7, 0));

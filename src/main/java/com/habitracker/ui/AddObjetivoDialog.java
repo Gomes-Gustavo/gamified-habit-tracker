@@ -1,24 +1,24 @@
 package com.habitracker.ui;
 
-import com.habitracker.backend.ObjetivoService; // Você precisará passar uma instância
+import com.habitracker.backend.ObjetivoService; 
 import com.habitracker.model.Objetivo;
 import com.habitracker.serviceapi.exceptions.PersistenceException;
 import com.habitracker.serviceapi.exceptions.ValidationException;
 import com.toedter.calendar.JTextFieldDateEditor;
-import com.toedter.calendar.JDateChooser; // Para o seletor de data
+import com.toedter.calendar.JDateChooser; 
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.ArrayList; // Para lista de hábitos vinculados (se usar)
-// import java.util.List; // Para lista de hábitos vinculados (se usar)
+import java.util.ArrayList; 
+
 
 public class AddObjetivoDialog extends JDialog {
     private JTextField nomeField;
     private JTextArea descricaoArea;
-    private JDateChooser dataMetaChooser; // Campo para data meta
+    private JDateChooser dataMetaChooser; 
     private JButton salvarButton;
     private JButton cancelarButton;
 
@@ -42,7 +42,7 @@ public class AddObjetivoDialog extends JDialog {
     }
 
     private void initComponents() {
-        // Cores e Fontes (adapte do seu MainFrame ou defina aqui)
+        
         Color corFundoDialog = usarTemaEscuro ? new Color(45, 45, 45) : new Color(240, 240, 240);
         Color corTextoLabel = usarTemaEscuro ? new Color(220, 220, 220) : Color.BLACK;
         Color corFundoCampo = usarTemaEscuro ? new Color(60, 60, 60) : Color.WHITE;
@@ -60,7 +60,7 @@ public class AddObjetivoDialog extends JDialog {
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        // Nome
+        
         JLabel nomeLabel = new JLabel("Nome do Objetivo:");
         nomeLabel.setFont(fonteLabel);
         nomeLabel.setForeground(corTextoLabel);
@@ -75,7 +75,7 @@ public class AddObjetivoDialog extends JDialog {
         gbc.gridx = 1; gbc.gridy = 0; gbc.weightx = 1.0;
         formPanel.add(nomeField, gbc);
 
-        // Descrição
+        
         JLabel descricaoLabel = new JLabel("Descrição:");
         descricaoLabel.setFont(fonteLabel);
         descricaoLabel.setForeground(corTextoLabel);
@@ -94,9 +94,9 @@ public class AddObjetivoDialog extends JDialog {
         descScrollPane.setOpaque(false);
         gbc.gridx = 1; gbc.gridy = 1; gbc.fill = GridBagConstraints.BOTH; gbc.weighty = 1.0;
         formPanel.add(descScrollPane, gbc);
-        gbc.weighty = 0; gbc.fill = GridBagConstraints.HORIZONTAL; // Resetar
+        gbc.weighty = 0; gbc.fill = GridBagConstraints.HORIZONTAL; 
 
-        // Data Meta
+        
         JLabel dataMetaLabel = new JLabel("Data Meta (Opcional):");
         dataMetaLabel.setFont(fonteLabel);
         dataMetaLabel.setForeground(corTextoLabel);
@@ -106,14 +106,14 @@ public class AddObjetivoDialog extends JDialog {
         dataMetaChooser = new JDateChooser();
         dataMetaChooser.setDateFormatString("dd/MM/yyyy");
         dataMetaChooser.setFont(fonteCampo);
-        // Estilizar JDateChooser para tema escuro pode ser um pouco mais complexo
-        // Para simplificar, vamos manter o padrão dele por enquanto.
-        // Se quiser customizar as cores do JDateChooser:
+        
+        
+        
         if (usarTemaEscuro) {
             dataMetaChooser.setBackground(corFundoDialog);
             dataMetaChooser.getCalendarButton().setBackground(new Color(80,80,80));
             dataMetaChooser.getCalendarButton().setForeground(Color.WHITE);
-            // O JTextField interno do JDateChooser
+            
             JTextFieldDateEditor editor = (JTextFieldDateEditor) dataMetaChooser.getDateEditor();
             editor.setBackground(corFundoCampo);
             editor.setForeground(corTextoCampo);
@@ -124,18 +124,18 @@ public class AddObjetivoDialog extends JDialog {
         
         add(formPanel, BorderLayout.CENTER);
 
-        // Botões
+        
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         buttonPanel.setOpaque(false);
 
         salvarButton = new JButton("Salvar");
         salvarButton.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        // Estilo do botão (adaptar do MainFrame.createStyledButton se tiver)
+        
         if (usarTemaEscuro) {
-            salvarButton.setBackground(new Color(0, 120, 0)); // Verde escuro
+            salvarButton.setBackground(new Color(0, 120, 0)); 
             salvarButton.setForeground(Color.WHITE);
         } else {
-            salvarButton.setBackground(new Color(200, 255, 200)); // Verde claro
+            salvarButton.setBackground(new Color(200, 255, 200)); 
         }
 
         cancelarButton = new JButton("Cancelar");
@@ -169,11 +169,11 @@ public class AddObjetivoDialog extends JDialog {
 
         Objetivo novoObjetivo = new Objetivo(usuarioId, nome, descricao);
         novoObjetivo.setDataMeta(dataMeta);
-        // novoObjetivo.setHabitosVinculados(...) // Se você tiver lógica para vincular hábitos aqui
+        
 
         try {
-            // A lista de IDs de hábitos vinculados seria obtida de outro componente na UI, se houver.
-            // Para este exemplo, passarei uma lista vazia.
+            
+            
             novoObjetivoAdicionado = objetivoService.addObjetivo(novoObjetivo, new ArrayList<>()); 
             objetivoAdicionadoComSucesso = true;
             dispose();

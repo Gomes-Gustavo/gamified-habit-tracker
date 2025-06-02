@@ -1,4 +1,3 @@
-// Exemplo: HabitNotFoundException.java
 package com.habitracker.serviceapi.exceptions;
 
 public class HabitNotFoundException extends Exception {
