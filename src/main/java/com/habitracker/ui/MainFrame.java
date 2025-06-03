@@ -1,40 +1,20 @@
 package com.habitracker.ui;
 
 
-import com.habitracker.backend.HabitService;
-
-
-import com.habitracker.database.HabitDAO;       
-import com.habitracker.database.ProgressoDiarioDAO; 
-import com.habitracker.database.UsuarioDAO;
-import com.habitracker.database.ObjetivoDAO;
-
-import com.habitracker.model.Habit;
-import com.habitracker.model.Usuario;
-import com.habitracker.model.ProgressoDiario;
-import com.habitracker.model.Objetivo; 
-import com.habitracker.serviceapi.HabitTrackerServiceAPI;
-import com.habitracker.serviceapi.dto.FeedbackMarcacaoDTO;
-import com.habitracker.serviceapi.exceptions.HabitNotFoundException;
-import com.habitracker.serviceapi.exceptions.PersistenceException;
-import com.habitracker.serviceapi.exceptions.UserNotFoundException;
-import com.habitracker.serviceapi.exceptions.ValidationException;
-import com.habitracker.backend.ObjetivoService;
-
-import javax.swing.*;
-import javax.swing.border.EmptyBorder;
-import javax.swing.border.LineBorder;
-import javax.swing.border.TitledBorder;
-import java.awt.*;
-
-
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.GridLayout;
+import java.awt.Insets;
 import java.beans.PropertyChangeListener;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Calendar; 
 import java.util.Collections;
 import java.util.Comparator; 
 import java.util.HashMap;
@@ -43,6 +23,42 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.DefaultListModel;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JList;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JProgressBar;
+import javax.swing.JScrollPane;
+import javax.swing.JTextField;
+import javax.swing.ListSelectionModel;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+import javax.swing.border.EmptyBorder;
+import javax.swing.border.LineBorder;
+import javax.swing.border.TitledBorder;
+
+import com.habitracker.backend.HabitService;
+import com.habitracker.backend.ObjetivoService;
+import com.habitracker.database.HabitDAO;
+import com.habitracker.database.ObjetivoDAO;
+import com.habitracker.database.ProgressoDiarioDAO;
+import com.habitracker.database.UsuarioDAO;
+import com.habitracker.model.Habit;
+import com.habitracker.model.Objetivo;
+import com.habitracker.model.ProgressoDiario;
+import com.habitracker.model.Usuario;
+import com.habitracker.serviceapi.HabitTrackerServiceAPI;
+import com.habitracker.serviceapi.dto.FeedbackMarcacaoDTO;
+import com.habitracker.serviceapi.exceptions.HabitNotFoundException;
+import com.habitracker.serviceapi.exceptions.PersistenceException;
+import com.habitracker.serviceapi.exceptions.UserNotFoundException;
+import com.habitracker.serviceapi.exceptions.ValidationException;
 import com.toedter.calendar.JCalendar;
 import com.toedter.calendar.JDayChooser;
 
@@ -96,7 +112,7 @@ public class MainFrame extends JFrame {
     private final Color COR_SELECAO_LISTA_FUNDO_VERDE_ESCURO = new Color(25, 80, 35);
     private final Color COR_SELECAO_LISTA_TEXTO_ESCURO = Color.WHITE;
     private final Color COR_PROGRESSBAR_PROGRESSO_ESCURO = COR_ACENTO_PRIMARIO_ESCURO;
-    private final Color COR_PROGRESSBAR_FUNDO_ESCURO = new Color(60, 60, 60);
+    private final Color COR_PROGRESSBAR_FUNDO_ESCURO = new Color(0, 0, 0);
     private final Color COR_TEXTO_BOTAO_ESCURO = Color.WHITE;
 
     private final Font FONTE_TITULO_JANELA = new Font("Arial", Font.BOLD, 24);
